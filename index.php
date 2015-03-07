@@ -1,7 +1,6 @@
 <?php
 
-$dsn = '';
-$clients = [];
+include "config.php";
 
 /**
 * The MIT License
@@ -9,6 +8,7 @@ $clients = [];
 *
 * ArrestDB 1.9.0 (github.com/alixaxel/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
+* Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
 
 if (strcmp(PHP_SAPI, 'cli') === 0)
@@ -554,6 +554,7 @@ class ArrestDB
 	public static function Serve($on = null, $route = null, $callback = null)
 	{
 		static $root = null;
+		global $prefix;
 
 		if (isset($_SERVER['REQUEST_METHOD']) !== true)
 		{
@@ -564,7 +565,14 @@ class ArrestDB
 		{
 			if (is_null($root) === true)
 			{
-				$root = preg_replace('~/++~', '/', substr($_SERVER['PHP_SELF'], strlen($_SERVER['SCRIPT_NAME'])) . '/');
+				if (substr($_SERVER["SERVER_SOFTWARE"],0,strlen("nginx"))=="nginx"){
+					$root=substr($_SERVER["REQUEST_URI"],strlen($prefix));
+				}
+				else{
+					$path=substr($_SERVER['PHP_SELF'], strlen($_SERVER['SCRIPT_NAME']));
+					$path=substr($path,strlen($prefix));
+					$root = preg_replace('~/++~', '/',  $path. '/');
+				}
 			}
 
 			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[0-9]++'], $route) . '~i', $root, $parts) > 0)
