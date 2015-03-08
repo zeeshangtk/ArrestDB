@@ -123,7 +123,7 @@ The relations config must be:
 $relations=[
 	"Customer"=>[
 		"purchases"=>["type"=>"array","ffable"=>"purchase","fkey"=>"customer_id"],
-		"user=>["type"=>"object","key"=>"user_id","ffable"=>"user"]
+		"user"=>["type"=>"object","key"=>"user_id","ffable"=>"user"]
 	],
 	"Purchase"=>[
 		"purchaseProducts"=>["type"=>"object","ffable"=>"PurchaseProduct","fkey"=>"purchase_id"],
