@@ -15,31 +15,16 @@ Or, if you only want to get one customer, then you would append the customer `id
 
 	GET http://api.example.com/customers/123/
 
+If you want to load a customer and all purchases and the products in each purchase, also user info
+	
+	GET http://api.example.com/customers/123/?extends=purchases,purchases/products,usser
+
 ##Requirements
 
 - PHP 5.4+ & PDO
 - SQLite / MySQL / PostgreSQL
 
 ##Installation
-
-Edit `index.php` and change the `$dsn` variable located at the top, here are some examples:
-
-- SQLite: `$dsn = 'sqlite://./path/to/database.sqlite';`
-- MySQL: `$dsn = 'mysql://[user[:pass]@]host[:port]/db/;`
-- PostgreSQL: `$dsn = 'pgsql://[user[:pass]@]host[:port]/db/;`
-
-If you want to restrict access to allow only specific IP addresses, add them to the `$clients` array:
-
-```php
-$clients = array
-(
-	'127.0.0.1',
-	'127.0.0.2',
-	'127.0.0.3',
-);
-```
-
-After you're done editing the file, place it in a public directory (feel free to change the filename).
 
 If you're using Apache, you can use the following `mod_rewrite` rules in a `.htaccess` file:
 
@@ -53,6 +38,108 @@ If you're using Apache, you can use the following `mod_rewrite` rules in a `.hta
 ```
 
 ***Nota bene:*** You must access the file directly, including it from another file won't work.
+
+If are you using nginx try this:
+
+```
+server {
+        listen       80;
+        server_name  myDomain.es *.myDomain.es;
+		root         /var/www/;
+
+        try_files $uri /index.php?$args;
+
+        location /index.php {
+            fastcgi_connect_timeout 3s;     # default of 60s is just too long
+            fastcgi_read_timeout 10s;       # default of 60s is just too long
+            include fastcgi_params;   
+        	fastcgi_pass unix:/var/run/php5-fpm.sock;
+		}
+	}
+```
+
+##Configuration
+
+Rename `config-example.php` to `config.php` and change the `$dsn` variable located at the top, here are some examples:
+
+- SQLite: `$dsn = 'sqlite://./path/to/database.sqlite';`
+- MySQL: `$dsn = 'mysql://[user[:pass]@]host[:port]/db/;`
+- PostgreSQL: `$dsn = 'pgsql://[user[:pass]@]host[:port]/db/;`
+
+After you're done editing the file, place it in a public directory (feel free to change the filename).
+
+If you want to restrict access to allow only specific IP addresses, add them to the `$clients` array:
+
+```php
+$clients = array
+(
+	'127.0.0.1',
+	'127.0.0.2',
+	'127.0.0.3',
+);
+```
+
+If your API must be in a subdirectory you can add `$prefix` variable. For instance, if your api is in `http://www.example.com/api` add:
+
+```php
+$prefix="/api"
+```
+
+### Extends
+If your want to use `extends` option you must define `$relations` variable. For instance, in this case we want when get a customer o a list of customers obtain also:
+
+- user (object)
+- all purchases (array)
+- all products in this purchase
+
+
+```
+http://api.example.com/Customer/?extends=user,purchases/purchaseProducts/product
+```
+
+
+```
+
+   +---------------+
+   |PurchaseProduct|        +-------+
+   |- id           |        |Product|
+   |- product_id   | ...... |- id   |
+ ..|- purchase_id  |        +-------+
+ | |- quantity     |
+ | +---------------+
+ |
+ |
+ | +-------------+
+ | |Purchase     |              +---------+
+ ..|- id         |              |Customer |                 +----+
+   |- customer_id|--------------|- id     |                 |User|
+   +-------------+              |- user_id|---------------- |- id|
+                                +---------+                 +----+
+```
+
+The relations config must be:
+
+```php
+$relations=[
+	"Customer"=>[
+		"purchases"=>["type"=>"array","ffable"=>"purchase","fkey"=>"customer_id"],
+		"user=>["type"=>"object","key"=>"user_id","ffable"=>"user"]
+	],
+	"Purchase"=>[
+		"purchaseProducts"=>["type"=>"object","ffable"=>"PurchaseProduct","fkey"=>"purchase_id"],
+	],
+	"PurchaseProduct"=>[
+		"product"=>["type"=>"object","key"=>"product_id","ftable"=>"Product"]	
+	}
+}
+```
+
+Where:
+- type : kind of relation (a customer has multiple purchases, a customer only have a user)
+- ftable : Table related with (Customer table are related with User and with Purchase)
+- fkey (optional, "id" by default) : key name in foreign table
+- key (optional, "id" by default) : key name in current table.
+
 
 ##API Design
 
@@ -96,6 +183,7 @@ Please note that `GET` calls accept the following query string variables:
   - `order` (order direction: `ASC` or `DESC`)
 - `limit` (`LIMIT x` SQL clause)
   - `offset` (`OFFSET x` SQL clause)
+ - `extends` (load related objects)
 
 Additionally, `POST` and `PUT` requests accept JSON-encoded and/or zlib-compressed payloads.
 
@@ -187,6 +275,8 @@ callback(JSON);
 ```
 
 Ajax-like requests will be minified, whereas normal browser requests will be human-readable.
+
+
 
 ##Changelog
 

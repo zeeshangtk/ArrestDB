@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.9.0 (github.com/alixaxel/ArrestDB/)
+* ArrestDB 1.10.0 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -77,6 +77,22 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		$result = ArrestDB::$HTTP[204];
 	}
 
+	if (isset($result[0]))
+		foreach ($result as $k=>$object)
+			$result[$k]["__table"]=$table;
+	else
+		$result["__table"]=$table;
+	
+	if (isset($_GET['extends']) === true){
+		$extends=explode(",", $_GET['extends']);
+		try{
+			$result=ArrestDB::Extend($result,$extends);
+		}catch(Exception $e){
+			$result = ArrestDB::$HTTP[400];
+			$result["error"]["detail"]=$e->getMessage();
+		}
+	}
+
 	return ArrestDB::Reply($result);
 });
 
@@ -131,6 +147,24 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	else if (isset($id) === true)
 	{
 		$result = array_shift($result);
+	}
+	
+	
+	if (isset($result[0]))
+		foreach ($result as $k=>$object)
+			$result[$k]["__table"]=$table;
+	else
+		$result["__table"]=$table;
+	
+	
+	if (isset($_GET['extends']) === true){
+		$extends=explode(",", $_GET['extends']);
+		try{
+			$result=ArrestDB::Extend($result,$extends);
+		}catch(Exception $e){
+			$result = ArrestDB::$HTTP[400];
+			$result["error"]["detail"]=$e->getMessage();
+		}
 	}
 
 	return ArrestDB::Reply($result);
@@ -555,6 +589,9 @@ class ArrestDB
 	{
 		static $root = null;
 		global $prefix;
+		
+		if (!isset($prefix))
+			$prefix="";
 
 		if (isset($_SERVER['REQUEST_METHOD']) !== true)
 		{
@@ -574,6 +611,9 @@ class ArrestDB
 					$root = preg_replace('~/++~', '/',  $path. '/');
 				}
 			}
+			
+			$e=explode("?",$root);
+			$root=$e[0];
 
 			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[0-9]++'], $route) . '~i', $root, $parts) > 0)
 			{
@@ -582,5 +622,89 @@ class ArrestDB
 		}
 
 		return false;
+	}
+	
+	public static function Extend($data,$extends){
+		if (isset($data[0])){
+			$result=array();
+			foreach ($data as $object)
+				$result[]=ArrestDB::Extend($object,$extends);
+				
+			return $result;
+		}
+		else{
+			$object=$data;
+			foreach ($extends as $extend){
+				$path=explode("/",$extend);
+				ArrestDB::ExtendComplete($object,$path);
+			}
+			
+			return $object;	
+		}
+	}
+	
+	public static function ExtendComplete(&$object,$path){
+		global $relations;
+			
+		$first=$path[0];
+		
+		if (!isset($object[$first])){
+			if ($relations==null)
+				throw new Exception("Relations not defined in config");
+	
+			if (!isset($relations[$object["__table"]]))
+				throw new Exception("{$object["__table"]} not defined in relations");
+	
+			if (!isset($relations[$object["__table"]][$first]))
+				throw new Exception("{$first} not defined in relations of {$object["__table"]}");
+			
+			$relation=$relations[$object["__table"]][$first];
+			
+			if(!isset($relation["type"])||!isset($relation["ftable"]))
+				throw new Exception("Invalid configuration in {$first} of {$object["__table"]}. Requisites (type,ftable)");
+	
+			if (!isset($relation["key"]))
+				$relation["key"]="id";
+				
+			if (!isset($relation["fkey"]))
+				$relation["fkey"]="id";
+			
+			$id=$object[$relation["key"]];
+			$query="SELECT * FROM \"{$relation["ftable"]}\" WHERE {$relation["fkey"]}={$id};";
+	
+			$result=ArrestDB::Query($query);
+			
+			if ($result === false){
+				$result = ArrestDB::$HTTP[404];
+			}
+			
+			foreach ($result as $k=>$item)
+				$result[$k]["__table"]=$relation["ftable"];
+		}
+		else
+			if (isset($object[$first][0]))
+				$result=$object[$first];
+			else
+				$result=[$object[$first]];
+			
+		$path2=$path;
+		array_shift($path2);
+
+		if (count($path2)>0)
+			foreach ($result as $k=>$item)
+				ArrestDB::ExtendComplete($result[$k],$path2);
+		
+		if ($relation["type"]=="object"){
+			if ($result!=null)
+				$result=$result[0];
+		}
+		else{
+			if ($result==null)
+				$result=[];
+		}
+			
+		
+		$object[$path[0]]=$result;
+			
 	}
 }

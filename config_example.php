@@ -2,4 +2,7 @@
 	
 $dsn = '';
 $clients = [];
-$prefix = '/api';
+
+/* Optional */
+//$prefix = ''; 
+//$relations = [];
