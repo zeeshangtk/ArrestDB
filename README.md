@@ -122,11 +122,11 @@ The relations config must be:
 ```php
 $relations=[
 	"Customer"=>[
-		"purchases"=>["type"=>"array","ffable"=>"purchase","fkey"=>"customer_id"],
+		"purchases"=>["type"=>"array","ftable"=>"purchase","fkey"=>"customer_id"],
 		"user"=>["type"=>"object","key"=>"user_id","ffable"=>"user"]
 	],
 	"Purchase"=>[
-		"purchaseProducts"=>["type"=>"object","ffable"=>"PurchaseProduct","fkey"=>"purchase_id"],
+		"purchaseProducts"=>["type"=>"object","ftable"=>"PurchaseProduct","fkey"=>"purchase_id"],
 	],
 	"PurchaseProduct"=>[
 		"product"=>["type"=>"object","key"=>"product_id","ftable"=>"Product"]	
