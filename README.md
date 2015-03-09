@@ -85,7 +85,7 @@ If your API must be in a subdirectory you can add `$prefix` variable. For instan
 $prefix="/api"
 ```
 
-### Extends
+### Extends (optional)
 If your want to use `extends` option you must define `$relations` variable. For instance, in this case we want when get a customer o a list of customers obtain also:
 
 - user (object)
@@ -139,6 +139,59 @@ Where:
 - ftable : Table related with (Customer table are related with User and with Purchase)
 - fkey (optional, "id" by default) : key name in foreign table
 - key (optional, "id" by default) : key name in current table.
+
+### Sequrity (optinal)
+
+To allow access to table and id you can create "ArrestDB_allow" function that controls if a table($id) can be loaded. Returns a boolean, if it returns false, a Forbidden (403) is returned. 
+
+```php
+function ArrestDB_allow($method,$table,$id){
+	return true;
+}
+```
+
+Note: If you are using "extends", this works for each level.
+
+### Query modifications (optional)
+
+To change query parameters you can create "ArrestDB_modify_query" function. "$query" parameter is an array with this sections:
+- $query["SELECT"] : Select parameters, by default "*"
+- $query["FROM"] : Query table, by default $table
+- $query["WHERE"] : Is an other array with all AND conditions.
+
+Other sections are "ORDER BY", "LIMIT", "OFFSET".
+
+Must return the "$query" array
+
+```php
+//In this case only allows objects with "deleted=0"
+function ArrestDB_modify_query($method,$table,$id,$query){
+	$query["WHERE"][]="deleted=0";
+	return $query;
+}
+```
+
+Note: If you are using "extends", this works for each level.
+
+### Result modifications
+
+To post process the result you can create "ArrestDB_postProcess". "$data" parameter is an array with result. Function can modify this and must return back.
+
+```php
+function ArrestDB_postProcess($method,$table,$id,$data){
+	if ($table=="User"){
+		if (isset($data[0]))
+			foreach ($data as $k=>$item)
+				postProcess($method,$table,$id,$data[$k]);
+		else
+			postProcess($method,$table,$id,$data);
+	}
+
+	return $data;
+}
+```
+
+Note: If you are using "extends", this works for each level
 
 
 ##API Design

@@ -38,44 +38,44 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
-	$query = array
-	(
-		sprintf('SELECT * FROM "%s"', $table),
-		sprintf('WHERE "%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE'),
-	);
+	if (function_exists("ArrestDB_allow"))
+		if (!ArrestDB_allow("GET",$table,$id))
+			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
+		
+	$query = [];
+	$query["SELECT"]="*";
+	$query["FROM"]=$table;
+	
+	$query["WHERE"]=[
+		sprintf('"%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE')
+	];
 
-	if (isset($_GET['by']) === true)
-	{
+	if (isset($_GET['by']) === true){
 		if (isset($_GET['order']) !== true)
-		{
 			$_GET['order'] = 'ASC';
-		}
 
-		$query[] = sprintf('ORDER BY "%s" %s', $_GET['by'], $_GET['order']);
+		$query["ORDER BY"]=$_GET['by']." ".$_GET['order'];
 	}
 
-	if (isset($_GET['limit']) === true)
-	{
-		$query[] = sprintf('LIMIT %u', $_GET['limit']);
-
+	if (isset($_GET['limit']) === true){
+		$query["LIMIT"]=$_GET['limit'];
+		
 		if (isset($_GET['offset']) === true)
-		{
-			$query[] = sprintf('OFFSET %u', $_GET['offset']);
-		}
+			$query["OFFSET"]=$_GET['offset'];
 	}
+	
+	if (function_exists("ArrestDB_modify_query"))
+		$query=ArrestDB_modify_query("GET",$table,$id,$query);
+		
+	$query=ArrestDB::PrepareQuery($query);
 
-	$query = sprintf('%s;', implode(' ', $query));
 	$result = ArrestDB::Query($query, $data);
 
 	if ($result === false)
-	{
-		$result = ArrestDB::$HTTP[404];
-	}
+		return ArrestDB::Reply(ArrestDB::$HTTP[404]);
 
 	else if (empty($result) === true)
-	{
-		$result = ArrestDB::$HTTP[204];
-	}
+		return ArrestDB::Reply(ArrestDB::$HTTP[204]);
 
 	if (isset($result[0]))
 		foreach ($result as $k=>$object)
@@ -88,66 +88,65 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		try{
 			$result=ArrestDB::Extend($result,$extends);
 		}catch(Exception $e){
-			$result = ArrestDB::$HTTP[400];
+			$result = ArrestDB::$HTTP[$e->getCode()];
 			$result["error"]["detail"]=$e->getMessage();
+			return ArrestDB::Reply($result);
 		}
 	}
-
+	
+	if (function_exists("ArrestDB_postProcess"))
+		$result=ArrestDB_postProcess("GET",$table,$id,$result);
+		
 	return ArrestDB::Reply($result);
 });
 
 ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 {
-	$query = array
-	(
-		sprintf('SELECT * FROM "%s"', $table),
-	);
+	if (function_exists("ArrestDB_allow"))
+		if (!ArrestDB_allow("GET",$table,$id))
+			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
 
-	if (isset($id) === true)
-	{
-		$query[] = sprintf('WHERE "%s" = ? LIMIT 1', 'id');
+	$query = [];
+	$query["SELECT"]="*";
+	$query["FROM"]=$table;
+	$query["WHERE"]=[];
+	
+	if (isset($id) === true){
+		$query["WHERE"][]='"id"=?';
+		$query["LIMIT"]=1;
 	}
-
-	else
-	{
-		if (isset($_GET['by']) === true)
-		{
+	else{
+		if (isset($_GET['by']) === true){
 			if (isset($_GET['order']) !== true)
-			{
 				$_GET['order'] = 'ASC';
-			}
 
-			$query[] = sprintf('ORDER BY "%s" %s', $_GET['by'], $_GET['order']);
+			$query["ORDER BY"]=$_GET['by']." ".$_GET['order'];
 		}
 
-		if (isset($_GET['limit']) === true)
-		{
-			$query[] = sprintf('LIMIT %u', $_GET['limit']);
-
+		if (isset($_GET['limit']) === true){
+			$query["LIMIT"]=$_GET['limit'];
+			
 			if (isset($_GET['offset']) === true)
-			{
-				$query[] = sprintf('OFFSET %u', $_GET['offset']);
-			}
+				$query["OFFSET"]=$_GET['offset'];
 		}
 	}
+	
+	if (function_exists("ArrestDB_modify_query"))
+		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 
-	$query = sprintf('%s;', implode(' ', $query));
+	$query=ArrestDB::PrepareQuery($query);
+
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
 
-	if ($result === false)
-	{
-		$result = ArrestDB::$HTTP[404];
-	}
 
+	if ($result === false)
+		return ArrestDB::Reply(ArrestDB::$HTTP[404]);
+		
 	else if (empty($result) === true)
-	{
-		$result = ArrestDB::$HTTP[204];
-	}
+		return ArrestDB::Reply(ArrestDB::$HTTP[204]);
 
 	else if (isset($id) === true)
-	{
 		$result = array_shift($result);
-	}
 	
 	
 	if (isset($result[0]))
@@ -162,16 +161,26 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 		try{
 			$result=ArrestDB::Extend($result,$extends);
 		}catch(Exception $e){
-			$result = ArrestDB::$HTTP[400];
+			$result = ArrestDB::$HTTP[$e->getCode()];
 			$result["error"]["detail"]=$e->getMessage();
+			return ArrestDB::Reply($result);
 		}
 	}
-
+	
+	if (function_exists("ArrestDB_postProcess"))
+		$result=ArrestDB_postProcess("GET",$table,$id,$result);
+	
 	return ArrestDB::Reply($result);
 });
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
+	if (function_exists("ArrestDB_allow"))
+		if (!ArrestDB_allow("DELETE",$table,$id)){
+			$result = ArrestDB::$HTTP[403];
+			return ArrestDB::Reply($result);
+		}
+		
 	$query = array
 	(
 		sprintf('DELETE FROM "%s" WHERE "%s" = ?', $table, 'id'),
@@ -228,6 +237,12 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 
 ArrestDB::Serve('POST', '/(#any)', function ($table)
 {
+	if (function_exists("ArrestDB_allow"))
+		if (!ArrestDB_allow("POST",$table,$id)){
+			$result = ArrestDB::$HTTP[403];
+			return ArrestDB::Reply($result);
+		}
+		
 	if (empty($_POST) === true)
 	{
 		$result = ArrestDB::$HTTP[204];
@@ -302,6 +317,12 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
+	if (function_exists("ArrestDB_allow"))
+		if (!ArrestDB_allow("PUT",$table,$id)){
+			$result = ArrestDB::$HTTP[403];
+			return ArrestDB::Reply($result);
+		}
+	
 	if (empty($GLOBALS['_PUT']) === true)
 	{
 		$result = ArrestDB::$HTTP[204];
@@ -650,18 +671,18 @@ class ArrestDB
 		
 		if (!isset($object[$first])){
 			if ($relations==null)
-				throw new Exception("Relations not defined in config");
+				throw new Exception("Relations not defined in config",400);
 	
 			if (!isset($relations[$object["__table"]]))
-				throw new Exception("{$object["__table"]} not defined in relations");
+				throw new Exception("{$object["__table"]} not defined in relations",400);
 	
 			if (!isset($relations[$object["__table"]][$first]))
-				throw new Exception("{$first} not defined in relations of {$object["__table"]}");
+				throw new Exception("{$first} not defined in relations of {$object["__table"]}",400);
 			
 			$relation=$relations[$object["__table"]][$first];
 			
 			if(!isset($relation["type"])||!isset($relation["ftable"]))
-				throw new Exception("Invalid configuration in {$first} of {$object["__table"]}. Requisites (type,ftable)");
+				throw new Exception("Invalid configuration in {$first} of {$object["__table"]}. Requisites (type,ftable)",400);
 	
 			if (!isset($relation["key"]))
 				$relation["key"]="id";
@@ -670,13 +691,29 @@ class ArrestDB
 				$relation["fkey"]="id";
 			
 			$id=$object[$relation["key"]];
-			$query="SELECT * FROM \"{$relation["ftable"]}\" WHERE {$relation["fkey"]}={$id};";
-	
+				
+			if (function_exists("ArrestDB_allow"))
+				if (!ArrestDB_allow("GET",$relation["ftable"],$id))
+					throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+			
+			$query = [];
+			$query["SELECT"]="*";
+			$query["FROM"]=$relation["ftable"];
+			$query["WHERE"]=["{$relation["fkey"]}={$id}"];
+			
+			if (function_exists("ArrestDB_modify_query"))
+				$query=ArrestDB_modify_query("GET",$relation["ftable"],$id,$query);
+				
+			$query=ArrestDB::PrepareQuery($query);
+			
 			$result=ArrestDB::Query($query);
 			
 			if ($result === false){
 				$result = ArrestDB::$HTTP[404];
 			}
+			
+			if (function_exists("ArrestDB_postProcess"))
+				$result=ArrestDB_postProcess("GET",$table,$id,$result);
 			
 			foreach ($result as $k=>$item)
 				$result[$k]["__table"]=$relation["ftable"];
@@ -706,5 +743,29 @@ class ArrestDB
 		
 		$object[$path[0]]=$result;
 			
+	}
+	
+	public static function PrepareQuery($query){
+		$result= "SELECT {$query["SELECT"]} ";
+		$result.="FROM \"{$query["FROM"]}\" ";
+
+		if (count($query["WHERE"])>0){
+			$result.=" WHERE {$query["WHERE"][0]} ";
+			
+			unset($query["WHERE"][0]);
+			foreach ($query["WHERE"] as $w)
+				$result.=" AND {$w} ";
+		}
+		
+		if (isset($query["ORDER BY"]))
+			$result.=" ORDER BY {$query["ORDER BY"]} ";
+		
+		if (isset($query["LIMIT"])){
+			$result.=" LIMIT {$query["LIMIT"]} ";
+			if ($query["OFFSET"])
+				$result.=" OFFSET {$query["OFFSET"]}";
+		}
+		
+		return $result;
 	}
 }
