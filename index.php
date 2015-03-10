@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.10.0 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.13 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -38,6 +38,9 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("GET",$table,$id))
 			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
@@ -102,6 +105,9 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 {
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("GET",$table,$id))
 			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
@@ -175,6 +181,9 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("DELETE",$table,$id)){
 			$result = ArrestDB::$HTTP[403];
@@ -237,6 +246,9 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 
 ArrestDB::Serve('POST', '/(#any)', function ($table)
 {
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("POST",$table,$id)){
 			$result = ArrestDB::$HTTP[403];
@@ -317,6 +329,9 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("PUT",$table,$id)){
 			$result = ArrestDB::$HTTP[403];
@@ -360,6 +375,7 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 });
 
 exit(ArrestDB::Reply(ArrestDB::$HTTP[400]));
+
 
 class ArrestDB
 {
@@ -623,7 +639,7 @@ class ArrestDB
 		{
 			if (is_null($root) === true)
 			{
-				if (substr($_SERVER["SERVER_SOFTWARE"],0,strlen("nginx"))=="nginx"){
+				if (isset($_SERVER["SERVER_SOFTWARE"]) && substr($_SERVER["SERVER_SOFTWARE"],0,strlen("nginx"))=="nginx"){
 					$root=substr($_SERVER["REQUEST_URI"],strlen($prefix));
 				}
 				else{
@@ -692,9 +708,14 @@ class ArrestDB
 			
 			$id=$object[$relation["key"]];
 				
-			if (function_exists("ArrestDB_allow"))
-				if (!ArrestDB_allow("GET",$relation["ftable"],$id))
-					throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+			if (function_exists("ArrestDB_allow")){
+				if ($relation["type"]=="object"){
+					if (!ArrestDB_allow("GET_INTERNAL",$relation["ftable"],$id))
+						throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+				}else
+					if (!ArrestDB_allow("GET_INTERNAL",$relation["ftable"],""))
+						throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+			}
 			
 			$query = [];
 			$query["SELECT"]="*";
@@ -702,7 +723,7 @@ class ArrestDB
 			$query["WHERE"]=["{$relation["fkey"]}={$id}"];
 			
 			if (function_exists("ArrestDB_modify_query"))
-				$query=ArrestDB_modify_query("GET",$relation["ftable"],$id,$query);
+				$query=ArrestDB_modify_query("GET_INTERNAL",$relation["ftable"],$id,$query);
 				
 			$query=ArrestDB::PrepareQuery($query);
 			
@@ -713,7 +734,7 @@ class ArrestDB
 			}
 			
 			if (function_exists("ArrestDB_postProcess"))
-				$result=ArrestDB_postProcess("GET",$table,$id,$result);
+				$result=ArrestDB_postProcess("GET_INTERNAL",$table,$id,$result);
 			
 			foreach ($result as $k=>$item)
 				$result[$k]["__table"]=$relation["ftable"];
@@ -746,16 +767,25 @@ class ArrestDB
 	}
 	
 	public static function PrepareQuery($query){
-		$result= "SELECT {$query["SELECT"]} ";
+		
+		if (isset($query["SELECT"]))
+			$result= "SELECT {$query["SELECT"]} ";
+		else
+			$result= "SELECT * ";
+			
 		$result.="FROM \"{$query["FROM"]}\" ";
 
-		if (count($query["WHERE"])>0){
-			$result.=" WHERE {$query["WHERE"][0]} ";
-			
-			unset($query["WHERE"][0]);
-			foreach ($query["WHERE"] as $w)
-				$result.=" AND {$w} ";
+		if (is_array($query)){
+			if (count($query["WHERE"])>0){
+				$result.=" WHERE {$query["WHERE"][0]} ";
+				
+				unset($query["WHERE"][0]);
+				foreach ($query["WHERE"] as $w)
+					$result.=" AND {$w} ";
+			}
 		}
+		else
+			$result.=" WHERE {$query["WHERE"]} ";
 		
 		if (isset($query["ORDER BY"]))
 			$result.=" ORDER BY {$query["ORDER BY"]} ";

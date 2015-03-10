@@ -144,13 +144,26 @@ Where:
 
 To allow access to table and id you can create "ArrestDB_allow" function that controls if a table($id) can be loaded. Returns a boolean, if it returns false, a Forbidden (403) is returned. 
 
+Method can be:
+- GET, POST, PUT and DELETE : Are direct API Calls
+- GET_INTERNAL : Is an internal get for extends
+
+In example case, list all Users is not allowed in direct api query but all extends access are allowed
+
 ```php
 function ArrestDB_allow($method,$table,$id){
+	if ($method=="GET_INTERNAL")
+		return true;
+		
+	if ($table=="User" && $id=="")
+		return false;
+		
 	return true;
 }
 ```
 
 Note: If you are using "extends", this works for each level.
+
 
 ### Query modifications (optional)
 
@@ -173,7 +186,7 @@ function ArrestDB_modify_query($method,$table,$id,$query){
 
 Note: If you are using "extends", this works for each level.
 
-### Result modifications
+### Result modifications (optional)
 
 To post process the result you can create "ArrestDB_postProcess". "$data" parameter is an array with result. Function can modify this and must return back.
 
@@ -193,6 +206,48 @@ function ArrestDB_postProcess($method,$table,$id,$data){
 
 Note: If you are using "extends", this works for each level
 
+### Auth (optional)
+
+You can add auth access control creating function "ArrestDB_auth". This function returns true when auth is ok, and false or exit when it fails.
+
+This is an example using BASIC AUTH and User table to check auth.
+
+```php
+$user=null;
+
+function ArrestDB_auth(){
+	global $user;
+	
+	if (!isset($_SERVER['PHP_AUTH_USER'])||!isset($_SERVER['PHP_AUTH_PW'])) {
+	    header('WWW-Authenticate: Basic realm="My Realm"');
+	    header('HTTP/1.0 401 Unauthorized');
+	    echo 'Invalid Auth';
+	    exit;
+	} else {
+	    $user=$_SERVER['PHP_AUTH_USER'];
+	    $pass=$_SERVER['PHP_AUTH_PW'];
+	
+		$query=ArrestDB::PrepareQuery([
+		    "FROM"=>"User",
+		    "WHERE"=>["email='$user'","password='$pass'"]
+		]);
+		
+		$result=ArrestDB::Query($query);
+		
+		if (count($result)==0){
+			header('WWW-Authenticate: Basic realm="My Realm"');
+		    header('HTTP/1.0 401 Unauthorized');
+		    echo 'Invalid Auth';
+		    exit;
+		}
+	
+		$user=$result[0];
+		
+		return true;
+	}
+}
+
+```
 
 ##API Design
 
@@ -341,7 +396,10 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 - **1.7.0** ~~fixed PostgreSQL connection bug, other minor improvements~~
 - **1.8.0** ~~fixed POST / PUT bug introduced in 1.5.0~~
 - **1.9.0** ~~updated to PHP 5.4 short array syntax~~
-
+- **1.10.0** ~~Config file & prefix & nginx suport~~
+- **1.11.0** ~~Extends param~~
+- **1.12.0** ~~Allow access, Query modifications and Result modifications callback~~
+- **1.13.0** ~~Auth & GET_INTERNAL method~~
 ##Credits
 
 ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Arrest-MySQL) with several optimizations and additional features.
@@ -349,3 +407,4 @@ ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Ar
 ##License (MIT)
 
 Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
+Contributions, Ivan Lausuch <ilausuch@gmail.com>
