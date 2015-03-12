@@ -456,7 +456,8 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 - **1.12.0** ~~Allow access, Query modifications and Result modifications callback~~
 - **1.13.0** ~~Auth & GET_INTERNAL method~~
 - **1.14.0** ~~Obfuscated id & not number id allow~~
-- **1.15.0** Table aliases, url combinations with and without / fixed
+- **1.15.0** ~~Table aliases, url combinations with and without / fixed~~
+- **1.16.0** POST Query modifications & IDs of new created objects in result
 
 ##Credits
 

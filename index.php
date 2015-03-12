@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.15 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -56,7 +56,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 			
 	$query = [];
 	$query["SELECT"]="*";
-	$query["FROM"]=$tableBase;
+	$query["TABLE"]=$tableBase;
 	
 	$query["WHERE"]=[
 		sprintf('"%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE')
@@ -79,7 +79,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	if (function_exists("ArrestDB_modify_query"))
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 		
-	$query=ArrestDB::PrepareQuery($query);
+	$query=ArrestDB::PrepareQuery("GET",$query);
 
 	$result = ArrestDB::Query($query, $data);
 
@@ -113,7 +113,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	}
 	
 	if (function_exists("ArrestDB_postProcess"))
-		$result=ArrestDB_postProcess("GET",$table,$id,$result);
+		$result=ArrestDB_postProcessGET($table,$id,$result);
 	
 	$result=ArrestDB::ObfuscateId($result);
 		
@@ -139,7 +139,7 @@ function ArrestDB_get($table, $id = null){
 	
 	$query = [];
 	$query["SELECT"]="*";
-	$query["FROM"]=$tableBase;
+	$query["TABLE"]=$tableBase;
 	$query["WHERE"]=[];
 	
 	if (isset($id) === true){
@@ -166,7 +166,7 @@ function ArrestDB_get($table, $id = null){
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 
 	
-	$query=ArrestDB::PrepareQuery($query);
+	$query=ArrestDB::PrepareQueryGET($query);
 
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
 
@@ -286,14 +286,11 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 	unset($data);
 }
 
-ArrestDB::Serve('POST', '/(#any)', function ($table)
-{
+ArrestDB::Serve('POST', '/(#any)', function ($table){
+	
+	
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
-	
-	if (function_exists("ArrestDB_obfuscate_id"))
-		if ($id!=null && $id!="")
-			$id=ArrestDB_obfuscate_id($table,$id,true);
 				
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("POST",$table,$id)){
@@ -317,25 +314,42 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 
 		foreach ($_POST as $row)
 		{
+			$query = [];
+			$query["TABLE"]=$table;
+			$query["VALUES"]=[];
+			
+			foreach ($row as $key => $value)
+				$query["VALUES"][$key]=$value;
+			
+			if (function_exists("ArrestDB_modify_query"))
+				$query=ArrestDB_modify_query("POST",$table,$id,$query);
+			
+			
+			$query=ArrestDB::PrepareQueryPOST($query);
+			
+			$queries[]=$query;
+			
+			/*
 			$data = [];
 
 			foreach ($row as $key => $value)
 			{
 				$data[sprintf('"%s"', $key)] = $value;
 			}
-
-			$query = array
-			(
-				sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_keys($data)), implode(', ', array_fill(0, count($data), '?'))),
+			
+			$query=(
+				sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_keys($data)), implode(', ', array_fill(0, count($data), '?')))
 			);
-
+			
+			
 			$queries[] = array
 			(
 				sprintf('%s;', implode(' ', $query)),
 				$data,
 			);
+			*/
 		}
-
+		
 		if (count($queries) > 1)
 		{
 			ArrestDB::Query()->beginTransaction();
@@ -358,7 +372,9 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 		{
 			$result = ArrestDB::Query($query[0], $query[1]);
 		}
-
+		
+		$ids=$result;
+		
 		if ($result === false)
 		{
 			$result = ArrestDB::$HTTP[409];
@@ -367,6 +383,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 		else
 		{
 			$result = ArrestDB::$HTTP[201];
+			$result["Id"]=$ids;
 		}
 	}
 
@@ -817,14 +834,14 @@ class ArrestDB
 			
 	}
 	
-	public static function PrepareQuery($query){
+	public static function PrepareQueryGET($query){
 		
 		if (isset($query["SELECT"]))
 			$result= "SELECT {$query["SELECT"]} ";
 		else
 			$result= "SELECT * ";
 			
-		$result.="FROM \"{$query["FROM"]}\" ";
+		$result.="FROM \"{$query["TABLE"]}\" ";
 
 		if (is_array($query)){
 			if (count($query["WHERE"])>0){
@@ -848,6 +865,25 @@ class ArrestDB
 		}
 		
 		return $result;
+	}
+	
+	public static function PrepareQueryPOST($query){
+		$keys=[];
+		$values=[];
+		$questions=[];
+		
+		foreach($query["VALUES"] as $k=>$v){
+			$keys[]="\"$k\"";
+			$values[]="$v";
+			$questions[]="?";
+		}
+			
+		$keys=implode(', ', $keys);
+		
+		return [
+			"INSERT INTO \"{$query["TABLE"]}\" ($keys) VALUES (".implode(', ',$questions).")",
+			$values
+			];
 	}
 	
 	public static function ObfuscateId($data){
