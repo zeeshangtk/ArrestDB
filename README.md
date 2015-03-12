@@ -140,7 +140,7 @@ Where:
 - fkey (optional, "id" by default) : key name in foreign table
 - key (optional, "id" by default) : key name in current table.
 
-### Sequrity (optinal)
+### Sequrity / Allow access to table (optinal)
 
 To allow access to table and id you can create "ArrestDB_allow" function that controls if a table($id) can be loaded. Returns a boolean, if it returns false, a Forbidden (403) is returned. 
 
@@ -164,6 +164,31 @@ function ArrestDB_allow($method,$table,$id){
 
 Note: If you are using "extends", this works for each level.
 
+### Sequrity / Id obfuscation (optinal)
+
+You can ofuscate Ids
+
+In this case, a global User with id field exists. The key for encription is a concat of an standard key, the table name and the user id. It prevent than:
+- Use the same obfuscated id in different tables
+- Use the same obfuscated id by different users
+
+```php
+function ArrestDB_obfuscate_id($table,$id,$reverse){
+	global $user;
+	
+	$key="12345";
+	
+	if ($reverse){
+		$id=base64_decode(strtr($id, '-_,', '+/='));
+		return trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key.$table.$user["id"], $id, MCRYPT_MODE_ECB));
+	}
+	else{
+		$res=mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key.$table.$user["id"], trim($id), MCRYPT_MODE_ECB);
+		return strtr(base64_encode($res), '+/=', '-_,'); 
+	}
+}
+
+```
 
 ### Query modifications (optional)
 
@@ -247,6 +272,36 @@ function ArrestDB_auth(){
 	}
 }
 
+```
+### Table alias (optional)
+
+You can create views or complex queries using table alias without any query parameters in GET request. In this case you can create alias tables that extends functionality. You probably will use "ArrestDB_tableAlias($table)" with "ArrestDB_modify_query"
+
+Note: you can do the same with views, but in some cases this method are more powerful.
+
+These cases receive real table or the table referred by alias
+- ArrestDB_obfuscate_id : table parameter are the real table
+- FROM of query
+- __table attribute of result objects
+
+In this example, we have been created a virtual view of "Purchase" to refer these purchased that are paid. The name will be "PurchasePaid"
+
+```php
+function ArrestDB_tableAlias($table){
+	if ($table=="PurchasePaid")
+		return "Purchase"
+		
+	return $table;	
+}
+
+function ArrestDB_modify_query($method,$table,$id,$query){
+	$query["WHERE"][]="deleted=0";
+	
+	if ($table=="PurchasePaid")
+		$query["WHERE"][]="paid=1";
+	
+	return $query;
+}
 ```
 
 ##API Design
@@ -400,6 +455,9 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 - **1.11.0** ~~Extends param~~
 - **1.12.0** ~~Allow access, Query modifications and Result modifications callback~~
 - **1.13.0** ~~Auth & GET_INTERNAL method~~
+- **1.14.0** ~~Obfuscated id & not number id allow~~
+- **1.15.0** Table aliases, url combinations with and without / fixed
+
 ##Credits
 
 ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Arrest-MySQL) with several optimizations and additional features.
@@ -407,4 +465,5 @@ ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Ar
 ##License (MIT)
 
 Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
+
 Contributions, Ivan Lausuch <ilausuch@gmail.com>

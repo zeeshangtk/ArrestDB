@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.13 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.15 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -41,13 +41,22 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
+	if (function_exists("ArrestDB_tableAlias"))
+		$tableBase=ArrestDB_tableAlias($table);
+	else
+		$tableBase=$table;
+		
+	if (function_exists("ArrestDB_obfuscate_id"))
+		if ($id!=null && $id!="")
+			$id=ArrestDB_obfuscate_id($tableBase,$id,true);
+	
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("GET",$table,$id))
 			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
-		
+			
 	$query = [];
 	$query["SELECT"]="*";
-	$query["FROM"]=$table;
+	$query["FROM"]=$tableBase;
 	
 	$query["WHERE"]=[
 		sprintf('"%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE')
@@ -82,12 +91,18 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 	if (isset($result[0]))
 		foreach ($result as $k=>$object)
-			$result[$k]["__table"]=$table;
+			$result[$k]["__table"]=$tableBase;
 	else
 		$result["__table"]=$table;
 	
-	if (isset($_GET['extends']) === true){
-		$extends=explode(",", $_GET['extends']);
+	if (isset($_GET['extends']) === true || isset($_GET['$extends']) === true){
+		if (isset($_GET['extends']))
+			$extends=$_GET['extends'];
+		
+		if (isset($_GET['$extends']))
+			$extends=$_GET['$extends'];
+			
+		$extends=explode(",", $extends);
 		try{
 			$result=ArrestDB::Extend($result,$extends);
 		}catch(Exception $e){
@@ -99,22 +114,32 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	
 	if (function_exists("ArrestDB_postProcess"))
 		$result=ArrestDB_postProcess("GET",$table,$id,$result);
+	
+	$result=ArrestDB::ObfuscateId($result);
 		
 	return ArrestDB::Reply($result);
 });
 
-ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
-{
+function ArrestDB_get($table, $id = null){
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	if (function_exists("ArrestDB_tableAlias"))
+		$tableBase=ArrestDB_tableAlias($table);
+	else
+		$tableBase=$table;
+		
+	if (function_exists("ArrestDB_obfuscate_id"))
+		if ($id!=null && $id!="")
+			$id=ArrestDB_obfuscate_id($tableBase,$id,true);
 		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("GET",$table,$id))
 			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
-
+	
 	$query = [];
 	$query["SELECT"]="*";
-	$query["FROM"]=$table;
+	$query["FROM"]=$tableBase;
 	$query["WHERE"]=[];
 	
 	if (isset($id) === true){
@@ -140,6 +165,7 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	if (function_exists("ArrestDB_modify_query"))
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 
+	
 	$query=ArrestDB::PrepareQuery($query);
 
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
@@ -157,13 +183,19 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	
 	if (isset($result[0]))
 		foreach ($result as $k=>$object)
-			$result[$k]["__table"]=$table;
+			$result[$k]["__table"]=$tableBase;
 	else
 		$result["__table"]=$table;
 	
 	
-	if (isset($_GET['extends']) === true){
-		$extends=explode(",", $_GET['extends']);
+	if (isset($_GET['extends']) === true || isset($_GET['$extends']) === true){
+		if (isset($_GET['extends']))
+			$extends=$_GET['extends'];
+		
+		if (isset($_GET['$extends']))
+			$extends=$_GET['$extends'];
+			
+		$extends=explode(",", $extends);
 		try{
 			$result=ArrestDB::Extend($result,$extends);
 		}catch(Exception $e){
@@ -176,13 +208,23 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	if (function_exists("ArrestDB_postProcess"))
 		$result=ArrestDB_postProcess("GET",$table,$id,$result);
 	
+	$result=ArrestDB::ObfuscateId($result);
+		
 	return ArrestDB::Reply($result);
-});
+}
+
+ArrestDB::Serve('GET', '/(#any)/(#num)',ArrestDB_get);
+ArrestDB::Serve('GET', '/(#any)/',ArrestDB_get);
+ArrestDB::Serve('GET', '/(#any)',ArrestDB_get);
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	if (function_exists("ArrestDB_obfuscate_id"))
+		if ($id!=null && $id!="")
+			$id=ArrestDB_obfuscate_id($table,$id,true);
 		
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("DELETE",$table,$id)){
@@ -248,7 +290,11 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
-		
+	
+	if (function_exists("ArrestDB_obfuscate_id"))
+		if ($id!=null && $id!="")
+			$id=ArrestDB_obfuscate_id($table,$id,true);
+				
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("POST",$table,$id)){
 			$result = ArrestDB::$HTTP[403];
@@ -331,7 +377,11 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
-		
+	
+	if (function_exists("ArrestDB_obfuscate_id"))
+		if ($id!=null && $id!="")
+			$id=ArrestDB_obfuscate_id($table,$id,true);
+				
 	if (function_exists("ArrestDB_allow"))
 		if (!ArrestDB_allow("PUT",$table,$id)){
 			$result = ArrestDB::$HTTP[403];
@@ -652,7 +702,7 @@ class ArrestDB
 			$e=explode("?",$root);
 			$root=$e[0];
 
-			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[0-9]++'], $route) . '~i', $root, $parts) > 0)
+			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[^/]++'], $route) . '~i', $root, $parts) > 0)
 			{
 				return (empty($callback) === true) ? true : exit(call_user_func_array($callback, array_slice($parts, 1)));
 			}
@@ -731,6 +781,7 @@ class ArrestDB
 			
 			if ($result === false){
 				$result = ArrestDB::$HTTP[404];
+				return $result;
 			}
 			
 			if (function_exists("ArrestDB_postProcess"))
@@ -797,5 +848,25 @@ class ArrestDB
 		}
 		
 		return $result;
+	}
+	
+	public static function ObfuscateId($data){
+		if (function_exists("ArrestDB_obfuscate_id")){
+			if (isset($data[0])){
+				foreach($data as $k=>$object)
+					$data[$k]=ArrestDB::ObfuscateId($object);
+				
+				return $data;
+			}
+			else{
+				$data["id"]=ArrestDB_obfuscate_id($data["__table"],$data["id"],false);
+				foreach($data as $k=>$value)
+					if (is_array($value))
+						$data[$k]=ArrestDB::ObfuscateId($value);
+						
+				return $data;
+			}
+		}else
+			return $data;
 	}
 }
