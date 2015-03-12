@@ -328,26 +328,6 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 			$query=ArrestDB::PrepareQueryPOST($query);
 			
 			$queries[]=$query;
-			
-			/*
-			$data = [];
-
-			foreach ($row as $key => $value)
-			{
-				$data[sprintf('"%s"', $key)] = $value;
-			}
-			
-			$query=(
-				sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_keys($data)), implode(', ', array_fill(0, count($data), '?')))
-			);
-			
-			
-			$queries[] = array
-			(
-				sprintf('%s;', implode(' ', $query)),
-				$data,
-			);
-			*/
 		}
 		
 		if (count($queries) > 1)
@@ -786,13 +766,13 @@ class ArrestDB
 			
 			$query = [];
 			$query["SELECT"]="*";
-			$query["FROM"]=$relation["ftable"];
+			$query["TABLE"]=$relation["ftable"];
 			$query["WHERE"]=["{$relation["fkey"]}={$id}"];
 			
 			if (function_exists("ArrestDB_modify_query"))
 				$query=ArrestDB_modify_query("GET_INTERNAL",$relation["ftable"],$id,$query);
 				
-			$query=ArrestDB::PrepareQuery($query);
+			$query=ArrestDB::PrepareQueryGET($query);
 			
 			$result=ArrestDB::Query($query);
 			
@@ -860,7 +840,7 @@ class ArrestDB
 		
 		if (isset($query["LIMIT"])){
 			$result.=" LIMIT {$query["LIMIT"]} ";
-			if ($query["OFFSET"])
+			if (isset($query["OFFSET"]))
 				$result.=" OFFSET {$query["OFFSET"]}";
 		}
 		
