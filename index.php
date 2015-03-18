@@ -79,7 +79,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	if (function_exists("ArrestDB_modify_query"))
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 		
-	$query=ArrestDB::PrepareQuery("GET",$query);
+	$query=ArrestDB::PrepareQueryGET($query);
 
 	$result = ArrestDB::Query($query, $data);
 
