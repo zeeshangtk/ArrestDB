@@ -42,7 +42,7 @@ If you're using Apache, you can use the following `mod_rewrite` rules in a `.hta
 
 ***Nota bene:*** You must access the file directly, including it from another file won't work.
 
-If are you using nginx try this:
+If you are using nginx try this:
 
 ```
 server {
@@ -197,7 +197,7 @@ function ArrestDB_obfuscate_id($table,$id,$reverse){
 
 To change query parameters you can create "ArrestDB_modify_query" function. "$query" parameter is an array with this sections:
 - $query["SELECT"] : Select parameters, by default "*"
-- $query["FROM"] : Query table, by default $table
+- $query["TABLE"] : Query table, by default $table
 - $query["WHERE"] : Is an other array with all AND conditions.
 
 Other sections are "ORDER BY", "LIMIT", "OFFSET".
@@ -256,7 +256,7 @@ function ArrestDB_auth(){
 	    $pass=$_SERVER['PHP_AUTH_PW'];
 	
 		$query=ArrestDB::PrepareQuery([
-		    "FROM"=>"User",
+		    "TABLE"=>"User",
 		    "WHERE"=>["email='$user'","password='$pass'"]
 		]);
 		
@@ -284,7 +284,7 @@ Note: you can do the same with views, but in some cases this method are more pow
 
 These cases receive real table or the table referred by alias
 - ArrestDB_obfuscate_id : table parameter are the real table
-- FROM of query
+- Table of query
 - __table attribute of result objects
 
 In this example, we have been created a virtual view of "Purchase" to refer these purchased that are paid. The name will be "PurchasePaid"
