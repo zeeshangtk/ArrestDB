@@ -8,16 +8,19 @@ Lets suppose you have set up ArrestDB at `http://api.example.com/` and that your
 To get a list of all the customers in the table you would simply need to do:
 
 	GET http://api.example.com/customers/
+	GET http://api.example.com/customers (optional without /)
 
 As a response, you would get a JSON formatted list of customers.
 
 Or, if you only want to get one customer, then you would append the customer `id` to the URL:
 
 	GET http://api.example.com/customers/123/
+	GET http://api.example.com/customers(123) (OData compatibility)
 
 If you want to load a customer and all purchases and the products in each purchase, also user info
 	
 	GET http://api.example.com/customers/123/?extends=purchases,purchases/products,usser
+	GET http://api.example.com/customers/(123)?extends=purchases,purchases/products,usser OData compatibility)
 
 ##Requirements
 
