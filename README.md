@@ -321,6 +321,7 @@ To put this into practice below are some example of how you would use the Arrest
 
 	# Get a single row from the "customers" table (where "123" is the ID)
 	GET http://api.example.com/customers/123/
+	GET http://api.example.com/customers(123)
 
 	# Get all rows from the "customers" table where the "country" field matches "Australia" (`LIKE`)
 	GET http://api.example.com/customers/country/Australia/
@@ -459,6 +460,7 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 - **1.15.0** ~~Table aliases, url combinations with and without / fixed~~
 - **1.16.0** POST Query modifications & IDs of new created objects in result
 - **1.16.1** FIXED Get problems
+- **1.17.0** OData get compatibility 
 
 ##Credits
 

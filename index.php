@@ -120,14 +120,22 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	return ArrestDB::Reply($result);
 });
 
-function ArrestDB_get($table, $id = null){
+
+
+ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table, $id = null){
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
+		$table=$matches["table"];
+		$id=$matches["id"];
+	}
 	
 	if (function_exists("ArrestDB_tableAlias"))
 		$tableBase=ArrestDB_tableAlias($table);
 	else
 		$tableBase=$table;
+		
 		
 	if (function_exists("ArrestDB_obfuscate_id"))
 		if ($id!=null && $id!="")
@@ -185,8 +193,7 @@ function ArrestDB_get($table, $id = null){
 		foreach ($result as $k=>$object)
 			$result[$k]["__table"]=$tableBase;
 	else
-		$result["__table"]=$table;
-	
+		$result["__table"]=$tableBase;
 	
 	if (isset($_GET['extends']) === true || isset($_GET['$extends']) === true){
 		if (isset($_GET['extends']))
@@ -211,16 +218,18 @@ function ArrestDB_get($table, $id = null){
 	$result=ArrestDB::ObfuscateId($result);
 		
 	return ArrestDB::Reply($result);
-}
+});
 
-ArrestDB::Serve('GET', '/(#any)/(#num)',ArrestDB_get);
-ArrestDB::Serve('GET', '/(#any)/',ArrestDB_get);
-ArrestDB::Serve('GET', '/(#any)',ArrestDB_get);
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
+		$table=$matches["table"];
+		$id=$matches["id"];
+	}
 	
 	if (function_exists("ArrestDB_obfuscate_id"))
 		if ($id!=null && $id!="")
@@ -293,7 +302,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 				
 	if (function_exists("ArrestDB_allow"))
-		if (!ArrestDB_allow("POST",$table,$id)){
+		if (!ArrestDB_allow("POST",$table,0)){
 			$result = ArrestDB::$HTTP[403];
 			return ArrestDB::Reply($result);
 		}
@@ -322,7 +331,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 				$query["VALUES"][$key]=$value;
 			
 			if (function_exists("ArrestDB_modify_query"))
-				$query=ArrestDB_modify_query("POST",$table,$id,$query);
+				$query=ArrestDB_modify_query("POST",$table,0,$query);
 			
 			
 			$query=ArrestDB::PrepareQueryPOST($query);
@@ -363,7 +372,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 		else
 		{
 			$result = ArrestDB::$HTTP[201];
-			$result["Id"]=$ids;
+			$result["success"]["Ids"]=$ids;
 		}
 	}
 
@@ -374,6 +383,11 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
+		$table=$matches["table"];
+		$id=$matches["id"];
+	}
 	
 	if (function_exists("ArrestDB_obfuscate_id"))
 		if ($id!=null && $id!="")
@@ -681,7 +695,8 @@ class ArrestDB
 		{
 			$_SERVER['REQUEST_METHOD'] = 'CLI';
 		}
-
+		
+		
 		if ((empty($on) === true) || (strcasecmp($_SERVER['REQUEST_METHOD'], $on) === 0))
 		{
 			if (is_null($root) === true)
@@ -699,12 +714,20 @@ class ArrestDB
 			$e=explode("?",$root);
 			$root=$e[0];
 
-			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[^/]++'], $route) . '~i', $root, $parts) > 0)
-			{
-				return (empty($callback) === true) ? true : exit(call_user_func_array($callback, array_slice($parts, 1)));
-			}
+			
+			if (is_array($route))
+				$routeList=$route;
+			else
+				$routeList=[$route];
+				
+			
+			foreach($routeList as $route)
+				if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[^/]++'], $route) . '~i', $root, $parts) > 0)
+				{
+					return (empty($callback) === true) ? true : exit(call_user_func_array($callback, array_slice($parts, 1)));
+				}
 		}
-
+		
 		return false;
 	}
 	
@@ -782,7 +805,7 @@ class ArrestDB
 			}
 			
 			if (function_exists("ArrestDB_postProcess"))
-				$result=ArrestDB_postProcess("GET_INTERNAL",$table,$id,$result);
+				$result=ArrestDB_postProcess("GET_INTERNAL",$relation["ftable"],$id,$result);
 			
 			foreach ($result as $k=>$item)
 				$result[$k]["__table"]=$relation["ftable"];
