@@ -11,6 +11,25 @@ include "config.php";
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
 
+// Allow from any origin
+    if (isset($_SERVER['HTTP_ORIGIN'])) {
+        header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Max-Age: 86400');    // cache for 1 day
+    }
+
+    // Access-Control headers are received during OPTIONS requests
+    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+
+        if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
+            header("Access-Control-Allow-Methods: GET, POST, OPTIONS, DELETE");
+
+        if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
+            header("Access-Control-Allow-Headers:        {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
+
+        exit(0);
+    }
+
 if (strcmp(PHP_SAPI, 'cli') === 0)
 {
 	exit('ArrestDB should not be run from CLI.' . PHP_EOL);
@@ -79,7 +98,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	if (function_exists("ArrestDB_modify_query"))
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 		
-	$query=ArrestDB::PrepareQuery("GET",$query);
+	$query=ArrestDB::PrepareQueryGET($query);
 
 	$result = ArrestDB::Query($query, $data);
 
