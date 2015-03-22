@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.1 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -132,7 +132,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	}
 	
 	if (function_exists("ArrestDB_postProcess"))
-		$result=ArrestDB_postProcessGET($table,$id,$result);
+		$result=ArrestDB_postProcess('GET',$table,$id,$result);
 	
 	$result=ArrestDB::ObfuscateId($result);
 		
@@ -192,9 +192,7 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 	if (function_exists("ArrestDB_modify_query"))
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 
-	
 	$query=ArrestDB::PrepareQueryGET($query);
-
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
 
 
