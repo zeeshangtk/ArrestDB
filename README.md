@@ -88,6 +88,17 @@ If your API must be in a subdirectory you can add `$prefix` variable. For instan
 $prefix="/api"
 ```
 
+To allow any origin active `$allowAnyOrigin` in config file
+
+```php
+$allowAnyOrigin=true;
+```
+
+To enable Access-Control headers are received during OPTIONS requests add `enableOptionsRequest` in config file
+```php
+$enableOptionsRequest=true;
+```
+
 ### Extends (optional)
 If your want to use `extends` option you must define `$relations` variable. For instance, in this case we want when get a customer o a list of customers obtain also:
 
