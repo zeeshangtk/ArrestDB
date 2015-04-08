@@ -826,31 +826,51 @@ class ArrestDB
 			
 			foreach ($result as $k=>$item)
 				$result[$k]["__table"]=$relation["ftable"];
+				
+				
+			$path2=$path;
+			array_shift($path2);
+	
+			if (count($path2)>0)
+				foreach ($result as $k=>$item)
+					ArrestDB::ExtendComplete($result[$k],$path2);
+			
+			if ($relation["type"]=="object"){
+				if ($result!=null)
+					$result=$result[0];
+			}
+			else{
+				if ($result==null)
+					$result=[];
+			}
+			
+			$object[$path[0]]=$result;
 		}
-		else
+		else{
+			/*
 			if (isset($object[$first][0]))
 				$result=$object[$first];
 			else
 				$result=[$object[$first]];
+			*/
 			
-		$path2=$path;
-		array_shift($path2);
+			$path2=$path;
+			array_shift($path2);
+			$result=&$object[$first];
 
-		if (count($path2)>0)
-			foreach ($result as $k=>$item)
-				ArrestDB::ExtendComplete($result[$k],$path2);
-		
-		if ($relation["type"]=="object"){
-			if ($result!=null)
-				$result=$result[0];
+			if (count($path2)>0){
+				if (isset($result[0])){
+					foreach ($result as $k=>$item)
+						ArrestDB::ExtendComplete($result[$k],$path2);
+				}else{
+					ArrestDB::ExtendComplete($result,$path2);
+				}
+			}
+				
+			//$object[$path[0]]=$result;
 		}
-		else{
-			if ($result==null)
-				$result=[];
-		}
-			
 		
-		$object[$path[0]]=$result;
+		
 			
 	}
 	
