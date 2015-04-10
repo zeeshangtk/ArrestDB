@@ -57,7 +57,7 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
 	if (function_exists("ArrestDB_tableAlias"))
@@ -142,7 +142,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 
 ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table, $id = null){
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
 	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
@@ -240,7 +240,7 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("DELETE",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
 	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
@@ -315,7 +315,7 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 ArrestDB::Serve('POST', '/(#any)', function ($table){
 	
 	
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("POST",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 				
 	if (function_exists("ArrestDB_allow"))
@@ -398,7 +398,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth())
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("PUT",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
 	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
