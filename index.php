@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.1 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.2 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -390,6 +390,8 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 		{
 			$result = ArrestDB::$HTTP[201];
 			$result["success"]["Ids"]=$ids;
+			if (function_exists(ArrestDB_postProcess))
+				ArrestDB_postProcess("POST",$table,"",$ids);
 		}
 	}
 
@@ -769,16 +771,20 @@ class ArrestDB
 	
 	public static function ExtendComplete(&$object,$path){
 		global $relations;
+		
+		if ($relations==null)
+			throw new Exception("Relations not defined in config",400);
 			
+				
 		$first=$path[0];
 		
 		if (!isset($object[$first])){
-			if ($relations==null)
-				throw new Exception("Relations not defined in config",400);
-	
+			if (!isset($object["__table"]))
+				return;
+			
 			if (!isset($relations[$object["__table"]]))
 				throw new Exception("{$object["__table"]} not defined in relations",400);
-	
+			
 			if (!isset($relations[$object["__table"]][$first]))
 				throw new Exception("{$first} not defined in relations of {$object["__table"]}",400);
 			
