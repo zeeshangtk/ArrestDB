@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.2 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.3 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -842,6 +842,10 @@ class ArrestDB
 					ArrestDB::ExtendComplete($result[$k],$path2);
 			
 			if ($relation["type"]=="object"){
+				if ($relation["ftable"]=="ProductRequest")
+				if (count($result)==0)
+					return null;
+					
 				if ($result!=null)
 					$result=$result[0];
 			}
