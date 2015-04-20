@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.3 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.4 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -812,7 +812,12 @@ class ArrestDB
 			
 			$query = [];
 			$query["SELECT"]="*";
-			$query["TABLE"]=$relation["ftable"];
+			
+			if (function_exists(ArrestDB_tableAlias))
+				$query["TABLE"]=ArrestDB_tableAlias($relation["ftable"]);
+			else
+				$query["TABLE"]=$relation["ftable"];
+			
 			$query["WHERE"]=["{$relation["fkey"]}={$id}"];
 			
 			if (function_exists("ArrestDB_modify_query"))
@@ -842,7 +847,6 @@ class ArrestDB
 					ArrestDB::ExtendComplete($result[$k],$path2);
 			
 			if ($relation["type"]=="object"){
-				if ($relation["ftable"]=="ProductRequest")
 				if (count($result)==0)
 					return null;
 					
@@ -954,5 +958,20 @@ class ArrestDB
 			}
 		}else
 			return $data;
+	}
+	
+	
+	public static function getObject($table,$id){
+		$query=ArrestDB::PrepareQueryGET([
+		    "TABLE"=>$table,
+		    "WHERE"=>["id='$id'"]
+		]);
+		
+		$result=ArrestDB::Query($query);
+		
+		if (count($result)==0)
+			return null;
+		else
+			return $result[0];
 	}
 }
