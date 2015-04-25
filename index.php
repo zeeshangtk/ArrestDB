@@ -417,6 +417,9 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 			$result = ArrestDB::$HTTP[403];
 			return ArrestDB::Reply($result);
 		}
+		
+	if (function_exists("ArrestDB_tableAlias"))
+		$table=ArrestDB_tableAlias($table);
 	
 	if (empty($GLOBALS['_PUT']) === true)
 	{
@@ -436,7 +439,7 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 		(
 			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $table, implode(', ', $data), 'id'),
 		);
-
+		
 		$query = sprintf('%s;', implode(' ', $query));
 		$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
 
