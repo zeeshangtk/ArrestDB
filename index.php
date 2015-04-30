@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.4 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.5 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -350,7 +350,6 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 			if (function_exists("ArrestDB_modify_query"))
 				$query=ArrestDB_modify_query("POST",$table,0,$query);
 			
-			
 			$query=ArrestDB::PrepareQueryPOST($query);
 			
 			$queries[]=$query;
@@ -428,30 +427,31 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 
 	else if (is_array($GLOBALS['_PUT']) === true)
 	{
+		$query = [];
+		$query["TABLE"]=$table;
+		$query["VALUES"]=[];
+		
+		foreach ($GLOBALS["_PUT"] as $key => $value)
+			$query["VALUES"][$key]=$value;
+		
+		if (function_exists("ArrestDB_modify_query"))
+			$query=ArrestDB_modify_query("PUT",$table,$id,$query);
+	
 		$data = [];
-
-		foreach ($GLOBALS['_PUT'] as $key => $value)
-		{
+		foreach ($query['VALUES'] as $key => $value){
 			$data[$key] = sprintf('"%s" = ?', $key);
 		}
-
-		$query = array
-		(
-			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $table, implode(', ', $data), 'id'),
+		
+		$query2 = array(
+			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $query["TABLE"], implode(', ', $data), 'id'),
 		);
 		
-		$query = sprintf('%s;', implode(' ', $query));
-		$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
-
+		$query2= sprintf('%s;', implode(' ', $query2));
+		$result = ArrestDB::Query($query2, $query['VALUES'], $id);
 		if ($result === false)
-		{
 			$result = ArrestDB::$HTTP[409];
-		}
-
 		else
-		{
 			$result = ArrestDB::$HTTP[200];
-		}
 	}
 
 	return ArrestDB::Reply($result);
@@ -941,6 +941,21 @@ class ArrestDB
 			"INSERT INTO \"{$query["TABLE"]}\" ($keys) VALUES (".implode(', ',$questions).")",
 			$values
 			];
+	}
+	
+	public static function PrepareQueryPUT($query,$id){
+		$res="UPDATE \"{$query["TABLE"]}\" SET ";
+		
+		if (count($query["VALUES"])>0){
+			foreach($query["VALUES"] as $k=>$v)
+				$res.="\"{$k}\"=\"{$v}\",";
+		
+			$res=substr($res, 0, -1);
+		}
+		
+		$res.=" WHERE id=\"{$id}\"";
+		
+		return $res;
 	}
 	
 	public static function ObfuscateId($data){
