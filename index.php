@@ -816,7 +816,7 @@ class ArrestDB
 			$query = [];
 			$query["SELECT"]="*";
 			
-			if (function_exists(ArrestDB_tableAlias))
+			if (function_exists("ArrestDB_tableAlias"))
 				$query["TABLE"]=ArrestDB_tableAlias($relation["ftable"]);
 			else
 				$query["TABLE"]=$relation["ftable"];
