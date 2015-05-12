@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.5 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.16.6 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -106,8 +106,9 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		return ArrestDB::Reply(ArrestDB::$HTTP[404]);
 
 	else if (empty($result) === true)
-		return ArrestDB::Reply(ArrestDB::$HTTP[204]);
-
+		//return ArrestDB::Reply(ArrestDB::$HTTP[204]);
+		return ArrestDB::Reply($result);
+		
 	if (isset($result[0]))
 		foreach ($result as $k=>$object)
 			$result[$k]["__table"]=$tableBase;
@@ -200,8 +201,9 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 		return ArrestDB::Reply(ArrestDB::$HTTP[404]);
 		
 	else if (empty($result) === true)
-		return ArrestDB::Reply(ArrestDB::$HTTP[204]);
-
+		//return ArrestDB::Reply(ArrestDB::$HTTP[204]);
+		return ArrestDB::Reply($result);
+		
 	else if (isset($id) === true)
 		$result = array_shift($result);
 	
