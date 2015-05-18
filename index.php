@@ -6,7 +6,7 @@ include "config.php";
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
 *
-* ArrestDB 1.16.6 (github.com/ilausuch/ArrestDB/)
+* ArrestDB 1.17 (github.com/ilausuch/ArrestDB/)
 * Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
 * Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
 **/
@@ -59,12 +59,12 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
-	
+
 	if (function_exists("ArrestDB_tableAlias"))
 		$tableBase=ArrestDB_tableAlias($table);
 	else
 		$tableBase=$table;
-		
+
 	if (function_exists("ArrestDB_obfuscate_id"))
 		if ($id!=null && $id!="")
 			$id=ArrestDB_obfuscate_id($tableBase,$id,true);
@@ -145,7 +145,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table, $id = null){
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,$id))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
-	
+
 	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
 		$table=$matches["table"];
 		$id=$matches["id"];
@@ -165,6 +165,7 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 		if (!ArrestDB_allow("GET",$table,$id))
 			return ArrestDB::Reply(ArrestDB::$HTTP[403]);
 	
+
 	$query = [];
 	$query["SELECT"]="*";
 	$query["TABLE"]=$tableBase;
@@ -259,7 +260,7 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 			$result = ArrestDB::$HTTP[403];
 			return ArrestDB::Reply($result);
 		}
-		
+				
 	$query = array
 	(
 		sprintf('DELETE FROM "%s" WHERE "%s" = ?', $table, 'id'),
@@ -325,6 +326,24 @@ ArrestDB::Serve('POST', '/(#any)', function ($table){
 			$result = ArrestDB::$HTTP[403];
 			return ArrestDB::Reply($result);
 		}
+		
+	if (substr($table,-2)=="()"){
+		$fnc=substr($table,0,-2);
+		if (function_exists("ArrestDB_function")){
+			$res=ArrestDB_function("POST",$fnc,$_POST);
+			if ($res===false){
+				return json_encode(ArrestDB::Reply(ArrestDB::$HTTP[400]));
+			}
+			else{
+				$result = ArrestDB::$HTTP[200];
+				$result["success"]["data"]=$res;
+				
+				return json_encode($result);
+			}
+		}
+		else
+			return json_encode(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	}
 		
 	if (empty($_POST) === true)
 	{
@@ -421,7 +440,7 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 		
 	if (function_exists("ArrestDB_tableAlias"))
 		$table=ArrestDB_tableAlias($table);
-	
+			
 	if (empty($GLOBALS['_PUT']) === true)
 	{
 		$result = ArrestDB::$HTTP[204];
