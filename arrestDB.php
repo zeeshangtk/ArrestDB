@@ -1,5 +1,14 @@
 <?php
 
+/**
+* The MIT License
+* http://creativecommons.org/licenses/MIT/
+*
+* ArrestDB 1.17 (github.com/ilausuch/ArrestDB/)
+* Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
+* Changes since 2015, Ivan Lausuch <ilausuch@gmail.com>
+**/
+
 class ArrestDB
 {
 	public static $HTTP = [
@@ -340,20 +349,20 @@ class ArrestDB
 				throw new Exception("Invalid configuration in {$first} of {$object["__table"]}. Requisites (type,ftable)",400);
 	
 			if (!isset($relation["key"]))
-				$relation["key"]="id";
+				$relation["key"]=ArrestDB::TableKeyName($object["__table"]);
 				
 			if (!isset($relation["fkey"]))
-				$relation["fkey"]="id";
+				$relation["fkey"]=ArrestDB::TableKeyName($relation["ftable"]);
 			
 			$id=$object[$relation["key"]];
 				
 			if (function_exists("ArrestDB_allow")){
 				if ($relation["type"]=="object"){
 					if (!ArrestDB_allow("GET_INTERNAL",$relation["ftable"],$id))
-						throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+						throw new Exception("Cannot load {$relation["ftable"]} with identifier $id",403);
 				}else
 					if (!ArrestDB_allow("GET_INTERNAL",$relation["ftable"],""))
-						throw new Exception("Cannot load {$relation["ftable"]} with id $id",403);
+						throw new Exception("Cannot load {$relation["ftable"]} with identifier $id",403);
 			}
 			
 			$query = [];
@@ -499,7 +508,7 @@ class ArrestDB
 			$res=substr($res, 0, -1);
 		}
 		
-		$res.=" WHERE id=\"{$id}\"";
+		$res.=" WHERE ".ArrestDB::TableKeyName($query["TABLE"])."=\"{$id}\"";
 		
 		return $res;
 	}
@@ -513,7 +522,11 @@ class ArrestDB
 				return $data;
 			}
 			else{
-				$data["id"]=ArrestDB_obfuscate_id($data["__table"],$data["id"],false);
+				$data[ArrestDB::TableKeyName($data["__table"])]=ArrestDB_obfuscate_id(
+						$data["__table"],
+						$data[ArrestDB::TableKeyName($data["__table"])],
+						false);
+					
 				foreach($data as $k=>$value)
 					if (is_array($value))
 						$data[$k]=ArrestDB::ObfuscateId($value);
@@ -560,12 +573,19 @@ class ArrestDB
 	public static function getObject($table,$id,$extends=null){
 		$res=ArrestDB::getQuery([
 		    "TABLE"=>$table,
-		    "WHERE"=>["id='$id'"]	
+		    "WHERE"=>[ArrestDB::TableKeyName($table)."='$id'"]	
 		],$extends);
 		
 		if ($res!=null)
 			return $res[0];
 		else
 			return null;
+	}
+	
+	public static function TableKeyName($table){
+		if (function_exists("ArrestDB_table_keyName"))
+			return ArrestDB_table_keyName($table);
+		else
+			return "id";
 	}
 }

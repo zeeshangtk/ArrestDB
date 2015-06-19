@@ -56,16 +56,16 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 	$_SERVER['REQUEST_METHOD'] = strtoupper(trim($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']));
 }
 
-ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
+ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $field, $id)
 {
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,$id))
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,""))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 
 	if (function_exists("ArrestDB_tableAlias"))
 		$tableBase=ArrestDB_tableAlias($table);
 	else
 		$tableBase=$table;
-
+	
 	if (function_exists("ArrestDB_obfuscate_id"))
 		if ($id!=null && $id!="")
 			$id=ArrestDB_obfuscate_id($tableBase,$id,true);
@@ -79,8 +79,9 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 	$query["TABLE"]=$tableBase;
 	
 	$query["WHERE"]=[
-		sprintf('"%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE')
+		sprintf('"%s" %s ?', $field, (ctype_digit($id) === true) ? '=' : 'LIKE')
 	];
+	
 
 	if (isset($_GET['by']) === true){
 		if (isset($_GET['order']) !== true)
@@ -100,9 +101,9 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		$query=ArrestDB_modify_query("GET",$table,$id,$query);
 		
 	$query=ArrestDB::PrepareQueryGET($query);
-
-	$result = ArrestDB::Query($query, $data);
-
+	
+	$result = ArrestDB::Query($query, $id);
+	
 	if ($result === false)
 		return ArrestDB::Reply(ArrestDB::$HTTP[404]);
 
@@ -124,6 +125,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 			$extends=$_GET['$extends'];
 			
 		$extends=explode(",", $extends);
+
 		try{
 			$result=ArrestDB::Extend($result,$extends);
 		}catch(Exception $e){
@@ -173,7 +175,7 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 	$query["WHERE"]=[];
 	
 	if (isset($id) === true){
-		$query["WHERE"][]='"id"=?';
+		$query["WHERE"][]='"'.ArrestDB::TableKeyName($tableBase).'"=?';
 		$query["LIMIT"]=1;
 	}
 	else{
@@ -264,7 +266,7 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 				
 	$query = array
 	(
-		sprintf('DELETE FROM "%s" WHERE "%s" = ?', $table, 'id'),
+		sprintf('DELETE FROM "%s" WHERE "%s" = ?', $table, ArrestDB::TableKeyName($table)),
 	);
 
 	$query = sprintf('%s;', implode(' ', $query));
@@ -319,7 +321,7 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 ArrestDB::Serve('POST', '/(#any)', function ($table){
 	
 	
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("POST",$table,$id))
+	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("POST",$table,""))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 				
 	if (function_exists("ArrestDB_allow"))
@@ -465,7 +467,7 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 		}
 		
 		$query2 = array(
-			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $query["TABLE"], implode(', ', $data), 'id'),
+			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $query["TABLE"], implode(', ', $data), ArrestDB::TableKeyName($query["TABLE"])),
 		);
 		
 		$query2= sprintf('%s;', implode(' ', $query2));
