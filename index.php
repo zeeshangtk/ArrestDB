@@ -3,6 +3,9 @@
 include "config.php";
 include "arrestDB.php";
 
+if (!isset($clients))
+	$clients = [];
+
 /**
 * The MIT License
 * http://creativecommons.org/licenses/MIT/

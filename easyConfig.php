@@ -117,11 +117,13 @@ class ArrestDBConfig{
 	}
 	
 	/**
-		Ofuscate ID function if is needed	
+		Ofuscate ID function if is needed (pendent)	
 	*/
+	/*
 	public static function ofuscateId($filter,$function){
 		self::$registryOfuscate[]=array("filter"=>$filter,"function"=>$function);
 	}
+	*/
 	
 	/**
 		Return the identifier key name if is distinct to "id"	
@@ -209,8 +211,9 @@ class ArrestDBConfig{
 	
 	/**
 		_internal
-		ofuscate id
+		ofuscate id (pendent)
 	*/
+	/*
 	public static function execute_ofusacteId($table,$id,$reverse){
 		foreach (self::$registryOfuscate as $reg)
 			if (self::checkFilter("",$table,$id,[],$reg["filter"]))
@@ -218,6 +221,7 @@ class ArrestDBConfig{
 		
 		return $id;
 	}
+	*/
 	
 	/**
 		_internal
@@ -366,7 +370,7 @@ if (!function_exists("ArrestDB_table_keyName")){
 	}
 }
 
-/*
+/* (pendent)
 if (!function_exists("ArrestDB_obfuscate_id")){
 	function ArrestDB_obfuscate_id($table,$id,$reverse){
 		return ArrestDBConfig::execute_ofusacteId($table,$id,$reverse);
