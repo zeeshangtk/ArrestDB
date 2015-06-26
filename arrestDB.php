@@ -542,7 +542,7 @@ class ArrestDB
 			return $data;
 	}
 	
-	public static function getQuery($query,$extends=null){
+	public static function getQuery($query,$extends=null,$id=""){
 		$table=$query["TABLE"];
 		$query=ArrestDB::PrepareQueryGET($query,false);
 		$result=ArrestDB::Query($query);
@@ -570,8 +570,6 @@ class ArrestDB
 		
 		if (function_exists("ArrestDB_postProcess"))
 			$result=ArrestDB_postProcess('GET',$table,$id,$result);
-			
-			//XXX $id doesn't exists
 		
 		return ArrestDB::ObfuscateId($result);
 	}
@@ -581,7 +579,7 @@ class ArrestDB
 		$res=ArrestDB::getQuery([
 		    "TABLE"=>$table,
 		    "WHERE"=>[ArrestDB::TableKeyName($table)."='$id'"]
-		],$extends);
+		],$extends,$id);
 		
 		if ($res!=null)
 			return $res[0];
