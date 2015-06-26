@@ -450,22 +450,27 @@ class ArrestDB
 		else
 			$result= "SELECT * ";
 			
+		if (!isset($query["TABLE"]))
+			die("TABLE is required in query array");
+			
 		if ($useQuotes)
 			$result.="FROM \"{$query["TABLE"]}\" ";
 		else
 			$result.="FROM {$query["TABLE"]} ";
 
-		if (is_array($query)){
-			if (count($query["WHERE"])>0){
-				$result.=" WHERE {$query["WHERE"][0]} ";
-				
-				unset($query["WHERE"][0]);
-				foreach ($query["WHERE"] as $w)
-					$result.=" AND {$w} ";
+		if (isset($query["WHERE"])){
+			if (is_array($query)){
+				if (count($query["WHERE"])>0){
+					$result.=" WHERE {$query["WHERE"][0]} ";
+					
+					unset($query["WHERE"][0]);
+					foreach ($query["WHERE"] as $w)
+						$result.=" AND {$w} ";
+				}
 			}
+			else
+				$result.=" WHERE {$query["WHERE"]} ";
 		}
-		else
-			$result.=" WHERE {$query["WHERE"]} ";
 		
 		if (isset($query["ORDER BY"]))
 			$result.=" ORDER BY {$query["ORDER BY"]} ";
@@ -565,6 +570,8 @@ class ArrestDB
 		
 		if (function_exists("ArrestDB_postProcess"))
 			$result=ArrestDB_postProcess('GET',$table,$id,$result);
+			
+			//XXX $id doesn't exists
 		
 		return ArrestDB::ObfuscateId($result);
 	}
@@ -573,7 +580,7 @@ class ArrestDB
 	public static function getObject($table,$id,$extends=null){
 		$res=ArrestDB::getQuery([
 		    "TABLE"=>$table,
-		    "WHERE"=>[ArrestDB::TableKeyName($table)."='$id'"]	
+		    "WHERE"=>[ArrestDB::TableKeyName($table)."='$id'"]
 		],$extends);
 		
 		if ($res!=null)
