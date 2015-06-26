@@ -589,6 +589,10 @@ class ArrestDB
 			return null;
 	}
 	
+	public static function getAll($table,$extends=null){
+		return ArrestDB::getQuery(["TABLE"=>$table],$extends);
+	}
+	
 	public static function TableKeyName($table){
 		if (function_exists("ArrestDB_table_keyName"))
 			return ArrestDB_table_keyName($table);
