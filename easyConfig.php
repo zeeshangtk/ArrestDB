@@ -164,7 +164,9 @@ class ArrestDBConfig{
 	public static function execute_auth($method,$table,$id){
 		foreach (self::$registryAuth as $reg){
 			if (self::checkFilter($method,$table,$id,[],$reg["filter"]))
-				if (!call_user_func_array($reg["function"],[$method,$table,$id]))
+				if (call_user_func_array($reg["function"],[$method,$table,$id]))
+					return true;
+				else	
 					return false;
 		}
 		
