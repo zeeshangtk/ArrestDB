@@ -526,6 +526,17 @@ In GET, GET_INTERNAL methods you can modify
 In POST and PUT methods you can modify
 - VALUES (array)
 
+Note: All items in WHERE are linked with AND boolean operation, If you need an OR, you must specify in WHERE clause. For instance:
+
+```php
+$query["WHERE"]="age<18 or age>60"
+```
+
+Also, you can specify any kind of WHERE SQL clauses. For instance:
+
+```php
+$query["WHERE"]="Group_id in (select id from Groups where owner={$user['id']}"
+```
 
 
 Example
