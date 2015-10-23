@@ -51,8 +51,8 @@ class ArrestDBConfig{
 			- $foreignTable : foreign table name
 			- $foreignKey :	foreign table identifier name ('id' by default)
 	*/
-	public static function prepareRelationObject($foreignTable,$key,$foreingKey="id"){
-		return ["type"=>"object","ftable"=>$foreignTable,"key"=>$key,"fkey"=>$foreingKey];
+	public static function prepareRelationObject($foreignTable,$key,$foreingKey="id",$keytype="numeric"){
+		return ["type"=>"object","ftable"=>$foreignTable,"key"=>$key,"fkey"=>$foreingKey,$keytype];
 	}
 	
 	/**
@@ -62,8 +62,8 @@ class ArrestDBConfig{
 			- $foreignTable : foreign table name
 			- $foreignKey :	foreign table identifier name ('id' by default)
 	*/
-	public static function prepareRelationList($foreignTable,$foreingKey,$key="id"){
-		return ["type"=>"array","ftable"=>$foreignTable,"key"=>$key,"fkey"=>$foreingKey];
+	public static function prepareRelationList($foreignTable,$foreingKey,$key="id",$keytype="numeric"){
+		return ["type"=>"array","ftable"=>$foreignTable,"key"=>$key,"fkey"=>$foreingKey,$keytype];
 	}
 	
 	/**

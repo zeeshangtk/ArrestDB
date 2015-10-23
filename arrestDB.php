@@ -373,8 +373,14 @@ class ArrestDB
 			else
 				$query["TABLE"]=$relation["ftable"];
 			
-			$query["WHERE"]=["{$relation["fkey"]}={$id}"];
+			if (!isset($relation["keytype"]))
+				$relation["keytype"]="numeric";
 			
+			if ($relation["keytype"]=="string")
+				$query["WHERE"]=["{$relation["fkey"]}='{$id}'"];
+			else
+				$query["WHERE"]=["{$relation["fkey"]}={$id}"];
+
 			if (function_exists("ArrestDB_modify_query"))
 				$query=ArrestDB_modify_query("GET_INTERNAL",$relation["ftable"],$id,$query);
 				

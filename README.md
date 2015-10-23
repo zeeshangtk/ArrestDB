@@ -355,17 +355,20 @@ ArrestDBConfig::relation($table,$name,$config)
 
 To prepare a config you can use prepareRelationObject and prepareRelationList functions
 
-Objects (one to one, * to one), prepareRelationObject($foreignTable,$key,$foreingKey="id")
+Objects (one to one, * to one), prepareRelationObject($foreignTable,$key,$foreingKey="id",$keytype="numeric")
 
 - $foreignTable: Related table name (equal to table name)
 - $key: Table identifier key of relation
 - $foreingKey: Foreign table identifier key of relation, by default "id"
+- $keytype: Define key type numeric or string, by default is numeric
 
-List (one to *), prepareRelationList($foreignTable,$foreingKey,$key="id")
+List (one to *), prepareRelationList($foreignTable,$foreingKey,$key="id",$keytype="numeric")
 
 - $foreignTable: Related table name (equal to table name)
 - $foreingKey: Foreign table identifier key of relation
 - $key: Table identifier key of relation, by default "id"
+- $keytype: Define key type numeric or string, by default is numeric
+
 
 Example
 ------------
