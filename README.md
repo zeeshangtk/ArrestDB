@@ -654,7 +654,7 @@ function sendMsg($data){
 
 ##Credits
 
-ArrestDB is son of [Arrest-MySQL](https://github.com/gilbitron/Arrest-MySQL) but with some optimizations and additional features.
+ArrestDB is son of [ArrestDB](https://github.com/ilausuch/ArrestDB) but with some optimizations and additional features.
 
 ##License (MIT)
 
