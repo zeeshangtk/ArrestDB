@@ -1,48 +1,62 @@
 <?php
+require_once("easyConfig.php");
 
 /*
-	---------------------------------------
-	METHODS
-	---------------------------------------
-	- GET: Get data from a table or execute a function
-	- GET_INTERNAL: Access to data in extends operation
-	- POST: Insert operation
-	- PUT: Modify operation
-	- DELETE: Delete operation
+	Example
+	------------
 	
-	---------------------------------------
-	FILTERS (used in following operations)
-	---------------------------------------
+	This is an example to explain some concepts in this example. A Customer have only one User, but can have some Purchases. A Purchase has some Products, using relation PurchaseProduct
 	
-	Filters is an associative array that define when a auth, modifyQuery, postProcess and allow operations will execute
-	
-	Options:
-	- method (string or array) : what method match [GET, GET_INTERNAL (in extends use), POST, PUT, DELETE
-	- no_method (string or array) : inverted method filter
-	
-	- table (string or array) : what table must match
-	- no_table (string or array) : inverted table filter
-	
-	- id_defined ('yes' or 'no') : if table identifier is defined or not in http query
-	
-	- id (string or array) :  if table identifier is in list
-	- no_id (string or array) : inverted table filter
-	
-	For instance, execute when table is User or Category when use POST method
-	[
-		"table"=>["User","Category"],
-		"method"=>"POST"
-	]	
-	
-	---------------------------------------
-	QUERIES
-	---------------------------------------
-	
-	TABLE
-	WHERE
-	VALUES
-*/
+   +---------------+
+   |PurchaseProduct|        +-------+
+   |- id           |        |Product|
+   |- product_id   | ...... |- id   |
+ ..|- purchase_id  |        +-------+
+ | |- quantity     |
+ | +---------------+
+ |
+ |
+ | +-------------+
+ | |Purchase     |              +---------+
+ ..|- id         |              |Customer |                 +----+    +----------+
+   |- customer_id|--------------|- id     |                 |User|    | UserInfo |
+   +-------------+              |- user_id|---------------- |- id|----| - user_id|
+                                +---------+                 +----+	  +----------+
 
+
+	// Get all rows from the "customers" extending information to User, userinfo and purchase
+	GET http://api.example.com/customers/?extends=User/UserInfo,Purchase
+
+	// Get a single row from the "customers" table (where "123" is the ID)
+	GET http://api.example.com/customers/123
+	GET http://api.example.com/customers/123/
+	GET http://api.example.com/customers(123) //OData compatibility
+
+	// Get all rows from the "customers" table where the "country" field matches "Australia" (`LIKE`)
+	GET http://api.example.com/customers/country/Australia/
+
+	// Get 50 rows from the "customers" table
+	GET http://api.example.com/customers/?limit=50
+
+	# Get 50 rows from the "customers" table ordered by the "date" field
+	GET http://api.example.com/customers/?limit=50&by=date&order=desc
+
+	# Create a new row in the "customers" table where the POST data corresponds to the database fields
+	POST http://api.example.com/customers/
+
+	# Update customer "123" in the "customers" table where the PUT data corresponds to the database fields
+	PUT http://api.example.com/customers/123/
+
+	# Delete customer "123" from the "customers" table
+	DELETE http://api.example.com/customers/123/
+	
+	Modifiers
+	-------------------
+	- extends : allow to get a tree of relation objects in one call
+	- limit : specify max elements to return
+	- order : specify witch order list must returned
+	- by : (use with order) specify what field is used to order 
+*/
 
 /*
 	Configure DB access
@@ -63,7 +77,7 @@
 	
 	}
 */
-$dsn = '';
+$dsn = 'mysql://myUser:myPassword@localhost/myDBname/';
 
 /*
 	Allow only access from a list of clients (OPTIONAL)	
@@ -75,7 +89,7 @@ $clients = [];
 	For instance, if you have a 'api' folder in your website path you should access using this url: http://mydomain.com/api
 	so you must configure $prefix using $prefix = '/api'; 
 */
-$prefix = ''; 
+$prefix = '/api'; 
 
 /*
 	Allows to connect from any origin. (OPTIONAL, by default true)
@@ -91,7 +105,7 @@ $enableOptionsRequest=true;
 /*
 	ALIASES (OPTIONAL)
 	
-	Define table aliases. An table alias can get diferent GET,POST,PUT and DELETE conditions and can be used in all following operations
+	Define table aliases. An table alias can get different GET,POST,PUT and DELETE conditions and can be used in all following operations
 	
 	ArrestDBConfig::alias($alias,$table);		
 */
@@ -102,26 +116,14 @@ ArrestDBConfig::alias("CategoryVisible","Category");//This is an example, remove
 	
 	Create relations for use extends in GET queries. This allow to get objects an related objects.
 	
-	Examples
-	------------
-	
-	- with objects: Each product has only one category
-	ArrestDBConfig::relation("Product","Category",ArrestDBConfig::prepareRelationObject("Category","Category_id"));
-	
-	- with lists: Each category has a list of products.
-	ArrestDBConfig::relation("Category","Products",ArrestDBConfig::prepareRelationList("Product","Category_id"));
-	
-	
-	Details
-	------------
+	Use:
 	
 	ArrestDBConfig::relation($table,$name,$config)
 	
 	- $table: the table name (equal to table name) witch contains relation
 	- $name: the variable where relation is loaded
 	
-	
-	Configuration
+	To prepare a config you can use prepareRelationObject and prepareRelationList functions
 	
 	Objects (one to one, * to one), prepareRelationObject($foreignTable,$key,$foreingKey="id")
 	
@@ -134,9 +136,154 @@ ArrestDBConfig::alias("CategoryVisible","Category");//This is an example, remove
 	- $foreignTable: Related table name (equal to table name)
 	- $foreingKey: Foreign table indentifier key of relation
 	- $key: Table identifier key of relation, by default "id"
+	
+	Example
+	------------
+	
+	- with objects: Each product has only one category
+	ArrestDBConfig::relation("Product","Category",ArrestDBConfig::prepareRelationObject("Category","Category_id"));
+	
+	- with lists: Each category has a list of products.
+	ArrestDBConfig::relation("Category","Products",ArrestDBConfig::prepareRelationList("Product","Category_id"));
+
 */
 ArrestDBConfig::relation("Category","Products",ArrestDBConfig::prepareRelationList("Product","Category_id")); //This is an example, remove it
 
+/*
+	Folowing functions apply specificly to a table, alias or function, a list of tables, aliases, or functions using one REST method (GET, POST, PUT, DELETE, and GET_INTERNAL) or list of methods. To define this exists filters.
+	
+	A filter is an associative array with two keys: table and method. Table, to define a table, alias or function or list of tables, aliases or functions, and method, to define a method o list of tables. If you don't specify one of them it means all of them
+	
+	Examples
+	-----------
+	
+	//Apply to table Category with all methods
+	[
+		"table"=>"Category"
+	]
+	
+	//Apply to tables Category and User with all methods
+	[
+		"table"=>["Category","User"]
+	]
+	
+	//Apply to tables Category and User with method GET
+	[
+		"table"=>"Category",
+		"method"=>"GET"
+	]
+	
+	//Apply for all tables with methods PUT and DELETE
+	[
+		"method"=>["PUT","DELETE"]
+	]
+	
+	//Apply function SendMail()
+	[
+		"table"=>"SendMail()"
+	]
+	
+	
+	Methods
+	------------
+	
+	- GET : Get one or all elements from api call
+	- GET_INTERNAL : Get one element internally when uses extends system
+	- POST : Create an element
+	- PUT : Modify an element
+	- DELETE : Delete an element
+*/
+
+/*
+	RESPONSES
+	--------------
+	All responses are in the JSON format. A `GET` response from the `customers` table might look like this:
+
+	[
+	    {
+	        "id": "114",
+	        "customerName": "Australian Collectors, Co.",
+	        "contactLastName": "Ferguson",
+	        "contactFirstName": "Peter",
+	        "phone": "123456",
+	        "addressLine1": "636 St Kilda Road",
+	        "addressLine2": "Level 3",
+	        "city": "Melbourne",
+	        "state": "Victoria",
+	        "postalCode": "3004",
+	        "country": "Australia",
+	        "salesRepEmployeeNumber": "1611",
+	        "creditLimit": "117300"
+	    },
+	]
+	
+	Successful `POST` responses will look like:
+	
+	{
+	    "success": {
+	        "code": 201,
+	        "status": "Created"
+	    }
+	}
+	
+	Successful `PUT` and `DELETE` responses will look like:
+	
+	{
+	    "success": {
+	        "code": 200,
+	        "status": "OK"
+	    }
+	}
+	
+	Errors are expressed in the format:
+	
+	{
+	    "error": {
+	        "code": 400,
+	        "status": "Bad Request"
+	    }
+	}
+	
+	The following codes and message are avaiable:
+	
+	* `200` OK
+	* `201` Created
+	* `204` No Content
+	* `400` Bad Request
+	* `403` Forbidden
+	* `404` Not Found
+	* `409` Conflict
+	* `503` Service Unavailable	
+*/
+
+/*
+	Process
+	--------------
+		
+		                                     _______
+	                               __..--''''       `''''----...__
+	                          _.--'                               `--.._
+	                      _,-'                                          `--._
+	                    -'                           +-----------+           '
+	      +----+     +-----+      +------------+     |Get objects|       +-------+
+	 .....|Auth|-----|Allow|------|Modify Query|-----|  from DB  |-------|Extends|
+	      +----+     +-----+      +------------+     +-----------+       +-------+
+	        |no         |no                                                  |finish
+	        |           |                                                    |
+	     .-----.     .-----.                                           +------------+
+	     |error|     |error|                              result ------|Post process|
+	     | 403 |     | 403 |                                           +------------+
+	     `-----'     `-----'	
+
+
+	1. First Query is checked by auth, if it's allowed continues, other ways returns error.
+	2. Query is checked by allow (GET and GET_INTERNAL allready are different here).
+	3. Query can be modified by ModifyQuery
+	4. System get objects from DB using prepared Query
+	5. System check if its necesary to extend information, If its the case renew the loop for all extended objects using GET_INTERNAL instead of GET
+	6. PostProcess can filter and manipulate the information to return. 
+
+*/
 
 /*	
 	AUTH (OPTIONAL)
@@ -147,13 +294,19 @@ ArrestDBConfig::relation("Category","Products",ArrestDBConfig::prepareRelationLi
 	- $filter: define the filter
 	- $function: define callback function(returns true or false), function($method,$table,$id){return true}
 	
-	If you define a list of auth methods, when system match with one, all afther that are not checked
+	You can define a list of auth methods, when system match with one, all afther that are not checked.
+	
+	Returns a boolean. If it returns true, api continues execution, if it returns false, a Forbidden (403) is returned.
+	
+	Example
+	------------
+	- Query Category table is allways authorized
+	- Other tables and operations are restringed and require HTTP authorization that is checked on DB User Table
 */
-
-//This is an example where authorization is requiered for all tables except for CategoryVisible that is always authorized 
 ArrestDBConfig::auth(
 	[
-		"table"=>"Category"
+		"table"=>"Category",
+		"method"=>"GET"
 	],
 	function($method,$table,$id){
 		return true;
@@ -170,16 +323,20 @@ ArrestDBConfig::auth(
 		    echo 'Invalid Auth';
 		    exit;
 		} else {
+			//Prepare params
 		    $user=$_SERVER['PHP_AUTH_USER'];
 		    $pass=sha1($_SERVER['PHP_AUTH_PW']);
 	
+			//Prepare query
 			$query=ArrestDB::PrepareQueryGET([
 			    "TABLE"=>"User",
 			    "WHERE"=>["email='$user'","password='$pass'"]
 			]);
 	
+			//Execute query
 			$result=ArrestDB::Query($query);
 	
+			//Check if thereis one result
 			if (count($result)==0){
 				header('WWW-Authenticate: Basic realm="My Realm"');
 			    header('HTTP/1.0 401 Unauthorized');
@@ -187,6 +344,7 @@ ArrestDBConfig::auth(
 			    exit;
 			}
 			
+			//Set global user
 			$user=$result[0];
 			
 			return true;
@@ -197,20 +355,23 @@ ArrestDBConfig::auth(
 /*
 	ALLOW (OPTIONAL)
 	
-	It's similar to auth but it's used in other cases when is checked out if it's allowed to execute a method over a table or function. Return true if is allowed. By default all is allowed
+	It's similar to AUTH but it's used when is checked out if it's allowed to execute a method over a table or function. Return true if is allowed. By default all is allowed
 	
 	ArrestDBConfig::allow($filter,$function)
 	- $filter: define the filter
 	- $function: define callback function(returns true or false), function($method,$table,$id){return true}
 	
 	If you define a list of allow methods, when system match with one, all afther that are not checked
-*/
 
-//In this example is not allowed Access directly to UserInfo or do deletes	
+	Example
+	------------
+	- UserInfo is only accesible by extends (GET_INTERNAL), and internal operations
+	- Method delete is forbiden
+*/
 ArrestDBConfig::allow(
 	[
 		"table"=>"UserInfo",
-		"method"=>"GET"
+		"method"=>["GET","POST","PUT","DELETE"]
 	],
 	function ($method,$table,$id){
 		return false;
@@ -229,7 +390,7 @@ ArrestDBConfig::allow(
 /*
 	MODIFY QUERY (OPTIONAL)
 	
-	Modify a query before execute this.
+	Modify a query before execute for instance adding more conditions
 	
 	In GET, GET_INTERNAL methods you can modify
 	- SELECT atributes (string)
@@ -247,9 +408,13 @@ ArrestDBConfig::allow(
 	- $table
 	- $id
 	- $query: query values
+	
+	Example
+	------------
+	- Query only non deleted tables
+	- Ofuscate password (with md5) when User is created
 */
 
-//In this example only it's viewed non deleted tables
 ArrestDBConfig::modifyQuery(
 	[
 		"method"=>["GET","GET_INTERNAL"]
@@ -259,7 +424,6 @@ ArrestDBConfig::modifyQuery(
 		return $query;
 	});
 	
-//In this example when a new user is created password is ofuscated with MD5 and is added a new value
 ArrestDBConfig::modifyQuery(
 	[
 		"table"=>"User",
@@ -282,6 +446,11 @@ ArrestDBConfig::modifyQuery(
 	- $table
 	- $id: In POST case, $id is the id of created object.
 	- $data: Data to return. Data can be an array or object (as array). See the following example to understand how to act in each case.
+
+	Example
+	------------
+	- Remove password on User table in queries before return the data
+	- Create a new UserInfo when User is created. Param Name is required
 */
 
 //In this case remove password on User table before return the data
@@ -300,16 +469,16 @@ ArrestDBConfig::postProcess(
 		return $data;
 	});
 
-//In this case when a new user is created, it's inserted 
+//In this case when a new UserInfo is created when User is created
 ArrestDBConfig::postProcess(
 	[
 		"method"=>"POST",
 		"table"=>"User"
 	],
 	function($method,$table,$id,$data){
-		if (isset($_GET["Group_id"])){
-			$group_id=$_GET["Group_id"];
-			ArrestDB::query("INSERT INTO UserInGroup(Group_id,User_id) VALUES ({$group_id},{$id})");
+		if (isset($_GET["Name"])){
+			$name=$_GET["Name"];
+			ArrestDB::query("INSERT INTO UserInfo(Name,User_id) VALUES ({$name},{$id})");
 		}
 		
 		return $data;
@@ -324,9 +493,17 @@ ArrestDBConfig::postProcess(
 	function ($func,$data)
 	- $func: function name
 	- $data: values in $_POST variable
+	
+	Example
+	------------
+	- version() api function returns string "Beta 1"
+	- sendMsg() api function returns result of calling to method sendMsg
 */
 
-//In this case 
+ArrestDBConfig::fnc("version",
+	function ($func,$data){
+		return "Beta 1";
+	});
 ArrestDBConfig::fnc("sendMsg",
 	function ($func,$data){
 		return sendMsg($data);

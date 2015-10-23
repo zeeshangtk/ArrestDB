@@ -2,7 +2,9 @@
 
 ArrestDB is a "plug-n-play" RESTful API for SQLite, MySQL and PostgreSQL databases.
 
-ArrestDB provides a REST API that maps directly to your database stucture with no configuation.
+ArrestDB provides a REST API that maps directly to your database structure with no configuration.
+
+##Usage
 
 Lets suppose you have set up ArrestDB at `http://api.example.com/` and that your database has a table named `customers`.
 To get a list of all the customers in the table you would simply need to do:
@@ -14,354 +16,28 @@ As a response, you would get a JSON formatted list of customers.
 
 Or, if you only want to get one customer, then you would append the customer `id` to the URL:
 
+	GET http://api.example.com/customers/123
 	GET http://api.example.com/customers/123/
 	GET http://api.example.com/customers(123) (OData compatibility)
 
 If you want to load a customer and all purchases and the products in each purchase, also user info
 	
 	GET http://api.example.com/customers/123/?extends=purchases,purchases/products,usser
-	GET http://api.example.com/customers/(123)?extends=purchases,purchases/products,usser OData compatibility)
-
-##Requirements
-
-- PHP 5.4+ & PDO
-- SQLite / MySQL / PostgreSQL
-
-##Installation
-
-If you're using Apache, you can use the following `mod_rewrite` rules in a `.htaccess` file:
-
-```apache
-<IfModule mod_rewrite.c>
-	RewriteEngine	On
-	RewriteCond		%{REQUEST_FILENAME}	!-d
-	RewriteCond		%{REQUEST_FILENAME}	!-f
-	RewriteRule		^(.*)$ index.php/$1	[L,QSA]
-</IfModule>
-```
-
-***Nota bene:*** You must access the file directly, including it from another file won't work.
-
-If you are using nginx try this:
-
-```
-server {
-        listen       80;
-        server_name  myDomain.es *.myDomain.es;
-		root         /var/www/;
-
-        try_files $uri /index.php?$args;
-
-        location /index.php {
-            fastcgi_connect_timeout 3s;     # default of 60s is just too long
-            fastcgi_read_timeout 10s;       # default of 60s is just too long
-            include fastcgi_params;   
-        	fastcgi_pass unix:/var/run/php5-fpm.sock;
-		}
-	}
-```
-
-##Configuration
-
-Rename `config-example.php` to `config.php` and change the `$dsn` variable located at the top, here are some examples:
-
-- SQLite: `$dsn = 'sqlite://./path/to/database.sqlite';`
-- MySQL: `$dsn = 'mysql://[user[:pass]@]host[:port]/db/;`
-- PostgreSQL: `$dsn = 'pgsql://[user[:pass]@]host[:port]/db/;`
-
-After you're done editing the file, place it in a public directory (feel free to change the filename).
-
-If you want to restrict access to allow only specific IP addresses, add them to the `$clients` array:
-
-```php
-$clients = array
-(
-	'127.0.0.1',
-	'127.0.0.2',
-	'127.0.0.3',
-);
-```
-
-If your API must be in a subdirectory you can add `$prefix` variable. For instance, if your api is in `http://www.example.com/api` add:
-
-```php
-$prefix="/api"
-```
-
-To allow any origin active `$allowAnyOrigin` in config file
-
-```php
-$allowAnyOrigin=true;
-```
-
-To enable Access-Control headers are received during OPTIONS requests add `enableOptionsRequest` in config file
-```php
-$enableOptionsRequest=true;
-```
-
-### Extends (optional)
-If your want to use `extends` option you must define `$relations` variable. For instance, in this case we want when get a customer o a list of customers obtain also:
-
-- user (object)
-- all purchases (array)
-- all products in this purchase
-
-
-```
-http://api.example.com/Customer/?extends=user,purchases/purchaseProducts/product
-```
-
-
-```
-
-   +---------------+
-   |PurchaseProduct|        +-------+
-   |- id           |        |Product|
-   |- product_id   | ...... |- id   |
- ..|- purchase_id  |        +-------+
- | |- quantity     |
- | +---------------+
- |
- |
- | +-------------+
- | |Purchase     |              +---------+
- ..|- id         |              |Customer |                 +----+
-   |- customer_id|--------------|- id     |                 |User|
-   +-------------+              |- user_id|---------------- |- id|
-                                +---------+                 +----+
-```
-
-The relations config must be:
-
-```php
-$relations=[
-	"Customer"=>[
-		"purchases"=>["type"=>"array","ftable"=>"purchase","fkey"=>"customer_id"],
-		"user"=>["type"=>"object","key"=>"user_id","ffable"=>"user"]
-	],
-	"Purchase"=>[
-		"purchaseProducts"=>["type"=>"object","ftable"=>"PurchaseProduct","fkey"=>"purchase_id"],
-	],
-	"PurchaseProduct"=>[
-		"product"=>["type"=>"object","key"=>"product_id","ftable"=>"Product"]	
-	}
-}
-```
-
-Where:
-- type : kind of relation (a customer has multiple purchases, a customer only have a user)
-- ftable : Table related with (Customer table are related with User and with Purchase)
-- fkey (optional, "id" by default) : key name in foreign table
-- key (optional, "id" by default) : key name in current table.
-
-### Sequrity / Allow access to table (optinal)
-
-To allow access to table and id you can create "ArrestDB_allow" function that controls if a table($id) can be loaded. Returns a boolean, if it returns false, a Forbidden (403) is returned. 
-
-Method can be:
-- GET, POST, PUT and DELETE : Are direct API Calls
-- GET_INTERNAL : Is an internal get for extends
-
-In example case, list all Users is not allowed in direct api query but all extends access are allowed
-
-```php
-function ArrestDB_allow($method,$table,$id){
-	if ($method=="GET_INTERNAL")
-		return true;
-		
-	if ($table=="User" && $id=="")
-		return false;
-		
-	return true;
-}
-```
-
-Note: If you are using "extends", this works for each level.
-
-### Sequrity / Id obfuscation (optinal)
-
-You can ofuscate Ids
-
-In this case, a global User with id field exists. The key for encription is a concat of an standard key, the table name and the user id. It prevent than:
-- Use the same obfuscated id in different tables
-- Use the same obfuscated id by different users
-
-```php
-function ArrestDB_obfuscate_id($table,$id,$reverse){
-	global $user;
 	
-	$key="12345";
+As RESTful API, operations are:
 	
-	if ($reverse){
-		$id=base64_decode(strtr($id, '-_,', '+/='));
-		return trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $key.$table.$user["id"], $id, MCRYPT_MODE_ECB));
-	}
-	else{
-		$res=mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $key.$table.$user["id"], trim($id), MCRYPT_MODE_ECB);
-		return strtr(base64_encode($res), '+/=', '-_,'); 
-	}
-}
-
-```
-
-### Query modifications (optional)
-
-To change query parameters you can create "ArrestDB_modify_query" function. "$query" parameter is an array with this sections:
-- $query["SELECT"] : Select parameters, by default "*"
-- $query["TABLE"] : Query table, by default $table
-- $query["WHERE"] : Is an other array with all AND conditions.
-
-Other sections are "ORDER BY", "LIMIT", "OFFSET".
-
-Must return the "$query" array
-
-```php
-//In this case only allows objects with "deleted=0"
-function ArrestDB_modify_query($method,$table,$id,$query){
-	$query["WHERE"][]="deleted=0";
-	return $query;
-}
-```
-
-Note: If you are using "extends", this works for each level.
-
-### Result modifications (optional)
-
-To post process the result you can create "ArrestDB_postProcess". "$data" parameter is an array with result. Function can modify this and must return back.
-
-```php
-function ArrestDB_postProcess($method,$table,$id,$data){
-	if ($table=="User"){
-		if (isset($data[0]))
-			foreach ($data as $k=>$item)
-				postProcess($method,$table,$id,$data[$k]);
-		else
-			postProcess($method,$table,$id,$data);
-	}
-
-	return $data;
-}
-```
-
-Note: If you are using "extends", this works for each level
-
-### Auth (optional)
-
-You can add auth access control creating function "ArrestDB_auth". This function returns true when auth is ok, and false or exit when it fails.
-
-This is an example using BASIC AUTH and User table to check auth.
-
-```php
-$user=null;
-
-function ArrestDB_auth(){
-	global $user;
+	* (C)reate > POST   /table
+	* (R)ead   > GET    /table[/id]
+	* (R)ead   > GET    /table[/column/content]
+	* (U)pdate > PUT    /table/id
+	* (D)elete > DELETE /table/id
 	
-	if (!isset($_SERVER['PHP_AUTH_USER'])||!isset($_SERVER['PHP_AUTH_PW'])) {
-	    header('WWW-Authenticate: Basic realm="My Realm"');
-	    header('HTTP/1.0 401 Unauthorized');
-	    echo 'Invalid Auth';
-	    exit;
-	} else {
-	    $user=$_SERVER['PHP_AUTH_USER'];
-	    $pass=$_SERVER['PHP_AUTH_PW'];
-	
-		$query=ArrestDB::PrepareQuery([
-		    "TABLE"=>"User",
-		    "WHERE"=>["email='$user'","password='$pass'"]
-		]);
-		
-		$result=ArrestDB::Query($query);
-		
-		if (count($result)==0){
-			header('WWW-Authenticate: Basic realm="My Realm"');
-		    header('HTTP/1.0 401 Unauthorized');
-		    echo 'Invalid Auth';
-		    exit;
-		}
-	
-		$user=$result[0];
-		
-		return true;
-	}
-}
+'GET' has different modifiers.
 
-```
-### Table alias (optional)
-
-You can create views or complex queries using table alias without any query parameters in GET request. In this case you can create alias tables that extends functionality. You probably will use "ArrestDB_tableAlias($table)" with "ArrestDB_modify_query"
-
-Note: you can do the same with views, but in some cases this method are more powerful.
-
-These cases receive real table or the table referred by alias
-- ArrestDB_obfuscate_id : table parameter are the real table
-- Table of query
-- __table attribute of result objects
-
-In this example, we have been created a virtual view of "Purchase" to refer these purchased that are paid. The name will be "PurchasePaid"
-
-```php
-function ArrestDB_tableAlias($table){
-	if ($table=="PurchasePaid")
-		return "Purchase"
-		
-	return $table;	
-}
-
-function ArrestDB_modify_query($method,$table,$id,$query){
-	$query["WHERE"][]="deleted=0";
-	
-	if ($table=="PurchasePaid")
-		$query["WHERE"][]="paid=1";
-	
-	return $query;
-}
-```
-
-##API Design
-
-The actual API design is very straightforward and follows the design patterns of the majority of APIs.
-
-	(C)reate > POST   /table
-	(R)ead   > GET    /table[/id]
-	(R)ead   > GET    /table[/column/content]
-	(U)pdate > PUT    /table/id
-	(D)elete > DELETE /table/id
-
-To put this into practice below are some example of how you would use the ArrestDB API:
-
-	# Get all rows from the "customers" table
-	GET http://api.example.com/customers/
-
-	# Get a single row from the "customers" table (where "123" is the ID)
-	GET http://api.example.com/customers/123/
-	GET http://api.example.com/customers(123)
-
-	# Get all rows from the "customers" table where the "country" field matches "Australia" (`LIKE`)
-	GET http://api.example.com/customers/country/Australia/
-
-	# Get 50 rows from the "customers" table
-	GET http://api.example.com/customers/?limit=50
-
-	# Get 50 rows from the "customers" table ordered by the "date" field
-	GET http://api.example.com/customers/?limit=50&by=date&order=desc
-
-	# Create a new row in the "customers" table where the POST data corresponds to the database fields
-	POST http://api.example.com/customers/
-
-	# Update customer "123" in the "customers" table where the PUT data corresponds to the database fields
-	PUT http://api.example.com/customers/123/
-
-	# Delete customer "123" from the "customers" table
-	DELETE http://api.example.com/customers/123/
-
-Please note that `GET` calls accept the following query string variables:
-
-- `by` (column to order by)
-  - `order` (order direction: `ASC` or `DESC`)
-- `limit` (`LIMIT x` SQL clause)
-  - `offset` (`OFFSET x` SQL clause)
- - `extends` (load related objects)
+	* extends : allow to get a tree of relation objects in one call
+	* limit : specify max elements to return
+	* order : specify witch order list must returned. `ASC` or `DESC`
+	* by : (use with order) specify what field is used to order
 
 Additionally, `POST` and `PUT` requests accept JSON-encoded and/or zlib-compressed payloads.
 
@@ -376,6 +52,7 @@ If your client does not support certain methods, you can use the `X-HTTP-Method-
 Alternatively, you can also override the HTTP method by using the `_method` query string parameter.
 
 Since 1.5.0, it's also possible to atomically `INSERT` a batch of records by POSTing an array of arrays.
+
 
 ##Responses
 
@@ -435,7 +112,7 @@ Errors are expressed in the format:
 }
 ```
 
-The following codes and message are avaiable:
+The following codes and message are available:
 
 * `200` OK
 * `201` Created
@@ -456,32 +133,530 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 
 
 
-##Changelog
+##Example used in this documentation
+	
+	This is an example to explain some concepts in this example. A Customer have only one User, but can have some Purchases. A Purchase has some Products, using relation PurchaseProduct
+	
+   +---------------+
+   |PurchaseProduct|        +-------+
+   |- id           |        |Product|
+   |- product_id   | ...... |- id   |
+ ..|- purchase_id  |        +-------+
+ | |- quantity     |
+ | +---------------+
+ |
+ |
+ | +-------------+
+ | |Purchase     |              +---------+
+ ..|- id         |              |Customer |                 +----+    +----------+
+   |- customer_id|--------------|- id     |                 |User|    | UserInfo |
+   +-------------+              |- user_id|---------------- |- id|----| - user_id|
+                                +---------+                 +----+	  +----------+
 
-- **1.2.0** ~~support for JSON payloads in `POST` and `PUT` (optionally gzipped)~~
-- **1.3.0** ~~support for JSON-P responses~~
-- **1.4.0** ~~support for HTTP method overrides using the `X-HTTP-Method-Override` header~~
-- **1.5.0** ~~support for bulk inserts in `POST`~~
-- **1.6.0** ~~added support for PostgreSQL~~
-- **1.7.0** ~~fixed PostgreSQL connection bug, other minor improvements~~
-- **1.8.0** ~~fixed POST / PUT bug introduced in 1.5.0~~
-- **1.9.0** ~~updated to PHP 5.4 short array syntax~~
-- **1.10.0** ~~Config file & prefix & nginx suport~~
-- **1.11.0** ~~Extends param~~
-- **1.12.0** ~~Allow access, Query modifications and Result modifications callback~~
-- **1.13.0** ~~Auth & GET_INTERNAL method~~
-- **1.14.0** ~~Obfuscated id & not number id allow~~
-- **1.15.0** ~~Table aliases, url combinations with and without / fixed~~
-- **1.16.0** POST Query modifications & IDs of new created objects in result
-- **1.16.1** FIXED Get problems
-- **1.17.0** OData get compatibility 
+
+	Examples
+	
+	Get all rows from the "customers" extending information to User, userinfo and purchase
+	GET http://api.example.com/customers/?extends=User/UserInfo,Purchase
+
+	Get a single row from the "customers" table (where "123" is the ID)
+	GET http://api.example.com/customers/123
+	GET http://api.example.com/customers/123/
+	GET http://api.example.com/customers(123) //OData compatibility
+
+	Get all rows from the "customers" table where the "country" field matches "Australia" (`LIKE`)
+	GET http://api.example.com/customers/country/Australia/
+
+	Get 50 rows from the "customers" table
+	GET http://api.example.com/customers/?limit=50
+
+	Get 50 rows from the "customers" table ordered by the "date" field
+	GET http://api.example.com/customers/?limit=50&by=date&order=desc
+
+	Create a new row in the "customers" table where the POST data corresponds to the database fields
+	POST http://api.example.com/customers/
+
+	# Update customer "123" in the "customers" table where the PUT data corresponds to the database fields
+	PUT http://api.example.com/customers/123/
+
+	# Delete customer "123" from the "customers" table
+	DELETE http://api.example.com/customers/123/
+	
+
+
+##Requirements
+
+- PHP 5.4+ & PDO
+- SQLite / MySQL / PostgreSQL
+
+##Installation web server
+
+If you're using Apache, you can use the following `mod_rewrite` rules in a `.htaccess` file:
+
+```apache
+<IfModule mod_rewrite.c>
+	RewriteEngine	On
+	RewriteCond		%{REQUEST_FILENAME}	!-d
+	RewriteCond		%{REQUEST_FILENAME}	!-f
+	RewriteRule		^(.*)$ index.php/$1	[L,QSA]
+</IfModule>
+```
+
+***Nota bene:*** You must access the file directly, including it from another file won't work.
+
+If you are using nginx try this:
+
+```
+server {
+        listen       80;
+        server_name  myDomain.es *.myDomain.es;
+		root         /var/www/;
+
+        try_files $uri /index.php?$args;
+
+        location /index.php {
+            fastcgi_connect_timeout 3s;     # default of 60s is just too long
+            fastcgi_read_timeout 10s;       # default of 60s is just too long
+            include fastcgi_params;   
+        	fastcgi_pass unix:/var/run/php5-fpm.sock;
+		}
+	}
+```
+
+##Configuration
+
+### DB access
+Rename `config-example.php` to `config.php` and change the `$dsn` variable located at the top, here are some examples:
+
+- SQLite: `$dsn = 'sqlite://./path/to/database.sqlite';`
+- MySQL: `$dsn = 'mysql://[user[:pass]@]host[:port]/db/;`
+- PostgreSQL: `$dsn = 'pgsql://[user[:pass]@]host[:port]/db/;`
+
+After you're done editing the file, place it in a public directory (feel free to change the filename).
+
+With bad configuration any operation returns:
+```php    
+    {
+	    "error": 
+	    {
+	        "code": 503,
+	        "status": "Service Unavailable"
+	    }
+	
+	}
+```
+
+### Other optional configurations
+
+If you want to restrict access to allow only specific IP addresses, add them to the `$clients` array:
+
+```php
+$clients = array
+(
+	'127.0.0.1',
+	'127.0.0.2',
+	'127.0.0.3',
+);
+```
+
+Define path where API is configured. (OPTIONAL, by default '')	
+For instance, if you have a 'api' folder in your website path you should access using this url: http://mydomain.com/api so you must configure $prefix using $prefix = '/api'
+
+```php
+$prefix="/api"
+```
+
+To allow any origin active `$allowAnyOrigin` in config file (OPTIONAL, by default true)
+
+```php
+$allowAnyOrigin=true;
+```
+
+To enable Access-Control headers are received during OPTIONS requests add `enableOptionsRequest` in config file (OPTIONAL, by default true)
+```php
+$enableOptionsRequest=true;
+```
+
+## Extended ArrestDB
+
+Extended ArrestDB allows to create a complete API with advanced functions, as get an object and relations in one query.
+
+The internal proceses are:
+
+
+
+		
+		                                     _______
+	                               __..--....       ....----...__
+	                          _.--'                               .--.._
+	                      _,-'                                          .--._
+	                    -'                           +-----------+           '
+	      +----+     +-----+      +------------+     |Get objects|       +-------+
+	 .....|Auth|-----|Allow|------|Modify Query|-----|  from DB  |-------|Extends|
+	      +----+     +-----+      +------------+     +-----------+       +-------+
+	        |no         |no                                                  |finish
+	        |           |                                                    |
+	     .-----.     .-----.                                           +------------+
+	     |error|     |error|                              result ------|Post process|
+	     | 403 |     | 403 |                                           +------------+
+	     `-----'     `-----'	
+
+
+	1. First Query is checked by auth, if it's allowed continues, other ways returns error.
+	2. Query is checked by allow (GET and GET_INTERNAL already are different here).
+	3. Query can be modified by ModifyQuery
+	4. System get objects from DB using prepared Query
+	5. System check if its necessary to extend information, If its the case renew the loop for all extended objects using GET_INTERNAL instead of GET
+	6. PostProcess can filter and manipulate the information to return. 
+
+
+### Configure
+
+To use extended ArrestDB you can include EasyConfig in config.php
+
+```php
+require_once("easyConfig.php");
+```
+Following operations are available to use.
+
+* alias: Define an alias for a table
+* relation: Define a relation of a table with other
+* auth: Define auth functions
+* allow: Define allow functions
+* modifyQuery: Define modify query functions
+* postProcess: Define post process functions
+* fnc: Define api functions available
+
+All are optionals. All are accumulative but order is important because determine the order to apply.
+
+
+### Aliases configuration
+
+Define table aliases. An table alias can get different GET,POST,PUT and DELETE conditions and can be used in all following operations
+	
+ArrestDBConfig::alias($alias,$table);		
+
+```php
+ArrestDBConfig::alias("CategoryVisible","Category");//This is an example, remove it
+```
+
+### Relations configuration
+	
+Define relations for use extends in GET queries. This allow to get objects an related objects.
+
+Usage:
+
+```php
+ArrestDBConfig::relation($table,$name,$config)
+```
+
+- $table: the table name (equal to table name) witch contains relation
+- $name: the variable where relation is loaded
+
+To prepare a config you can use prepareRelationObject and prepareRelationList functions
+
+Objects (one to one, * to one), prepareRelationObject($foreignTable,$key,$foreingKey="id")
+
+- $foreignTable: Related table name (equal to table name)
+- $key: Table identifier key of relation
+- $foreingKey: Foreign table identifier key of relation, by default "id"
+
+List (one to *), prepareRelationList($foreignTable,$foreingKey,$key="id")
+
+- $foreignTable: Related table name (equal to table name)
+- $foreingKey: Foreign table identifier key of relation
+- $key: Table identifier key of relation, by default "id"
+
+Example
+------------
+```php
+// Define a relation with other object (one to one): Each product has only one category
+ArrestDBConfig::relation("Product","Category",ArrestDBConfig::prepareRelationObject("Category","Category_id"));
+
+// Define a relation with list (one to some): Each category has a list of products.
+ArrestDBConfig::relation("Category","Products",ArrestDBConfig::prepareRelationList("Product","Category_id"));
+```
+
+## Access to api authorization
+	
+Check if authorization is required to access to a table, alias or function. It's used to control access to api. 
+
+By default all is authorized
+
+Usage:
+
+```php
+ArrestDBConfig::auth($filter,$function)
+```
+- $filter: define the filter
+- $function: define callback function(returns true or false), function($method,$table,$id){return true}
+
+Returns a boolean. If it returns true, api continues execution, if it returns false, a Forbidden (403) is returned.
+
+You can define a list of auth methods, when system match with one, all after that are not checked. By default is all authorized, so if is not defined any auth or they are no applicable system automatically authorize the api call.
+
+
+Example
+------------
+
+```php
+// Query Category table is allways authorized
+ArrestDBConfig::auth(
+	[
+		"table"=>"Category",
+		"method"=>"GET"
+	],
+	function($method,$table,$id){
+		return true;
+	});
+
+// Other tables and operations are restringed and require HTTP authorization that is checked on DB User Table
+ArrestDBConfig::auth(
+	[],
+	function($method,$table,$id){
+		global $user;
+		
+		if (!isset($_SERVER['PHP_AUTH_USER'])||!isset($_SERVER['PHP_AUTH_PW'])) {
+		    header('WWW-Authenticate: Basic realm="My Realm"');
+		    header('HTTP/1.0 401 Unauthorized');
+		    echo 'Invalid Auth';
+		    exit;
+		} else {
+			//Prepare params
+		    $user=$_SERVER['PHP_AUTH_USER'];
+		    $pass=sha1($_SERVER['PHP_AUTH_PW']);
+	
+			//Prepare query
+			$query=ArrestDB::PrepareQueryGET([
+			    "TABLE"=>"User",
+			    "WHERE"=>["email='$user'","password='$pass'"]
+			]);
+	
+			//Execute query
+			$result=ArrestDB::Query($query);
+	
+			//Check if thereis one result
+			if (count($result)==0){
+				header('WWW-Authenticate: Basic realm="My Realm"');
+			    header('HTTP/1.0 401 Unauthorized');
+			    echo 'Invalid Auth';
+			    exit;
+			}
+			
+			//Set global user
+			$user=$result[0];
+			
+			return true;
+		}
+	});
+```
+
+## allow access to a table, alias or function
+It's similar to AUTH but it's used when is checked out if it's allowed to execute a method over a table or function. Return true if is allowed. By default all is allowed
+	
+Usage:
+
+```php
+ArrestDBConfig::allow($filter,$function)
+```
+
+- $filter: define the filter
+- $function: define callback function(returns true or false), function($method,$table,$id){return true}
+
+Returns a boolean. If it returns true, api continues execution, if it returns false, a Forbidden (403) is returned.
+
+If you define a list of allow methods, when system match with one, next ones are are not checked
+
+Example
+------------
+
+```php
+// UserInfo is only accesible by extends (GET_INTERNAL), and internal operations
+ArrestDBConfig::allow(
+	[
+		"table"=>"UserInfo",
+		"method"=>["GET","POST","PUT","DELETE"]
+	],
+	function ($method,$table,$id){
+		return false;
+	});
+
+//	All deletes are forbidden
+ArrestDBConfig::allow(
+	[
+		"method"=>"DELETE"
+	],
+	function ($method,$table,$id){
+		return false;
+	});
+```
+
+### Modify a query
+	
+Modify a query before execute for instance adding more conditions
+
+Usage:
+
+```php
+ArrestDBConfig::modifyQuery($filter,$function)
+```
+
+- $filter: define the filter
+- $function: function($method,$table,$id,$query){return $query}
+
+Returns a query. Returns modified $query
+
+function ($method,$table,$id,$query)
+- $method
+- $table
+- $id
+- $query: query structura
+
+
+These are fields you can modify in $query.
+
+In GET, GET_INTERNAL methods you can modify
+- SELECT attributes (string)
+- WHERE conditions (array)
+- TABLE name
+- ORDER BY
+- LIMIT
+- OFFSET
+
+In POST and PUT methods you can modify
+- VALUES (array)
+
+
+
+Example
+------------
+```php
+//Query only non deleted tables
+ArrestDBConfig::modifyQuery(
+	[
+		"method"=>["GET","GET_INTERNAL"]
+	],
+	function ($method,$table,$id,$query){
+		$query["WHERE"][]="deleted=0";
+		return $query;
+	});
+
+Obfuscate password (with md5) when User is created	
+ArrestDBConfig::modifyQuery(
+	[
+		"table"=>"User",
+		"method"=>"POST"
+	],
+	function ($method,$table,$id,$query){
+		$query["VALUES"]["password"]=md5($query["VALUES"]["password"]);
+		$query["VALUES"]["createdByApi"]=1;
+		return $query;
+	});
+```
+
+## Post process result
+	
+It's called after an operation, and it allows to modify result or do any operation before send to client
+
+Usage:
+
+```php
+ArrestDBConfig::allow($filter,$function)
+```
+- $filter: define the filter
+- $function: function($method,$table,$id,$data){return $data}
+
+Returns the modified (or not) $data array
+
+function($method,$table,$id,$data)
+- $method
+- $table
+- $id: In POST case, $id is the id of created object.
+- $data: Data to return. Data can be an array or object (as array). See the following example to understand how to act in each case.
+
+
+Example
+------------
+	
+```php
+//Remove password on User table in queries before return the data
+ArrestDBConfig::postProcess(
+	[
+		"table"=>"User",
+		"method"=>["GET","GET_INTERNAL"],
+	],
+	function($method,$table,$id,$data){
+		if (isset($data[0]))
+			foreach ($data as $k=>$item)
+				unset($item["password"]);
+		else
+			unset($data["password"]);
+					
+		return $data;
+	});
+
+//Create a new UserInfo when User is created. Param Name is required
+ArrestDBConfig::postProcess(
+	[
+		"method"=>"POST",
+		"table"=>"User"
+	],
+	function($method,$table,$id,$data){
+		if (isset($_GET["Name"])){
+			$name=$_GET["Name"];
+			ArrestDB::query("INSERT INTO UserInfo(Name,User_id) VALUES ({$name},{$id})");
+		}
+		
+		return $data;
+	});
+```
+
+## Calling functions
+	
+Allows to call a function to do complex operations. All functions use POST method. Remember this when you'll call it.
+
+Usage:
+```php
+ArrestDBConfig::fnc($name,$function)
+```
+- $name: name of function
+- $function: function($func,$data){return $data}
+
+Returns a string that could be returned as response. It could be a JSON string
+
+function ($func,$data)
+- $func: function name
+- $data: values in $_POST variable
+
+
+
+Example
+------------
+
+```php
+// version() api function returns string "Beta 1"
+ArrestDBConfig::fnc("version",
+	function ($func,$data){
+		return json_encode(array("version"=>"Beta 1","minor"=>123));
+	});
+	
+// sendMsg() api function returns result of calling to method sendMsg
+ArrestDBConfig::fnc("sendMsg",
+	function ($func,$data){
+		return sendMsg($data);
+	});
+	
+function sendMsg($data){
+	//TODO. Do something
+	return true	
+}
+```
 
 ##Credits
 
-ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Arrest-MySQL) with several optimizations and additional features.
+ArrestDB is son of [Arrest-MySQL](https://github.com/gilbitron/Arrest-MySQL) but with some optimizations and additional features.
 
 ##License (MIT)
 
-Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
-
-Contributions, Ivan Lausuch <ilausuch@gmail.com>
+Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com) - original ArrestDB
+Copyright (c) 2015 Ivan Lausuch (ilausuch@gmail.com) - featured ArrestDB
