@@ -136,7 +136,7 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
 ##Example used in this documentation
 	
 	This is an example to explain some concepts in this example. A Customer have only one User, but can have some Purchases. A Purchase has some Products, using relation PurchaseProduct
-	
+```	
    +---------------+
    |PurchaseProduct|        +-------+
    |- id           |        |Product|
@@ -152,7 +152,7 @@ Ajax-like requests will be minified, whereas normal browser requests will be hum
    |- customer_id|--------------|- id     |                 |User|    | UserInfo |
    +-------------+              |- user_id|---------------- |- id|----| - user_id|
                                 +---------+                 +----+	  +----------+
-
+```
 
 	Examples
 	
