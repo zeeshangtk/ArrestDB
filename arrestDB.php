@@ -66,7 +66,7 @@ class ArrestDB
 	{
 		static $db = null;
 		static $result = [];
-
+		file_put_contents('php://stderr', print_r("the query si $query", TRUE));
 		try
 		{
 			if (isset($db, $query) === true)
@@ -202,14 +202,17 @@ class ArrestDB
 							\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
 						);
 					}
-					
+					$x = sprintf('%s:host=%s;port=%s;dbname=%s', $dsn[1], $dsn[4], $dsn[5], $dsn[6]);
+					file_put_contents('php://stderr', print_r("the db object is $x", TRUE));
 					$db = new \PDO(sprintf('%s:host=%s;port=%s;dbname=%s', $dsn[1], $dsn[4], $dsn[5], $dsn[6]), $dsn[2], $dsn[3], $options);
+					
 				}
 			}
 		}
 
 		catch (\Exception $exception)
 		{
+			file_put_contents('php://stderr', print_r("Exception is $exception", TRUE));
 			return false;
 		}
 

@@ -61,6 +61,7 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $field, $id)
 {
+	file_put_contents('php://stderr', print_r("\n\n$$$$the table name is $table", TRUE));
 	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("GET",$table,""))
 		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 
@@ -249,8 +250,9 @@ ArrestDB::Serve('GET', ['/(#any)/(#num)','/(#any)/','/(#any)'],function ($table,
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
-	if (function_exists("ArrestDB_auth") && !ArrestDB_auth("DELETE",$table,$id))
-		exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+	
+	// if (function_exists("ArrestDB_auth") && !ArrestDB_auth("DELETE",$table,$id))
+	// 	exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
 	
 	if (preg_match("/(?P<table>[^\(]+)\((?P<id>[^\)]+)\)/",$table,$matches)){
 		$table=$matches["table"];
@@ -262,10 +264,10 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 			$id=ArrestDB_obfuscate_id($table,$id,true);
 		
 	if (function_exists("ArrestDB_allow"))
-		if (!ArrestDB_allow("DELETE",$table,$id)){
-			$result = ArrestDB::$HTTP[403];
-			return ArrestDB::Reply($result);
-		}
+		// if (!ArrestDB_allow("DELETE",$table,$id)){
+		// 	$result = ArrestDB::$HTTP[403];
+		// 	return ArrestDB::Reply($result);
+		// }
 				
 	$query = array
 	(
